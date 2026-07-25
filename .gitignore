@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Gizli anahtarlar — asla commit edilmez (dart-define-from-file ile okunur)
+/config/gemini.json
+/config/*.local.json

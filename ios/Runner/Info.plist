@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kriz anında veli ses kaydı ve asistan desteği için mikrofon kullanılır.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Kemik iletimli kulaklık ve giyilebilir cihaz bağlantısı için Bluetooth gerekir.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Kemik iletimli kulaklık ve giyilebilir cihaz bağlantısı için Bluetooth gerekir.</string>
 </dict>
 </plist>
