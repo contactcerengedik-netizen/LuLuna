@@ -56,6 +56,7 @@ class SupabasePairingRepository implements PairingRepository {
       profileJson: profile.toJson(),
       createdAt: DateTime.now(),
       parentEmail: parentEmail,
+      parentId: uid,
     );
 
     try {
@@ -82,10 +83,10 @@ class SupabasePairingRepository implements PairingRepository {
     final code = loadMyInviteCode();
     if (code == null) return;
     try {
-      await _client.from('pairing_codes').update({
-        'child_name': profile.name,
-        'profile_json': profile.toMap(),
-      }).eq('code', code);
+      await _client
+          .from('pairing_codes')
+          .update({'child_name': profile.name, 'profile_json': profile.toMap()})
+          .eq('code', code);
     } catch (e) {
       debugPrint('Davet kodu profili güncellenemedi: $e');
     }
@@ -100,28 +101,28 @@ class SupabasePairingRepository implements PairingRepository {
 
     final Map<String, dynamic>? row;
     try {
-      row = await _client
-          .from('pairing_codes')
-          .select()
-          .eq('code', code)
-          .maybeSingle();
+      final result = await _client.rpc(
+        'claim_pairing_code',
+        params: {'invite_code': code},
+      );
+      final rows = result as List<dynamic>;
+      row = rows.isEmpty ? null : Map<String, dynamic>.from(rows.first as Map);
     } on PostgrestException catch (e) {
-      throw PairingException('Kod sorgulanamadı: ${e.message}');
+      if (e.message.contains('invalid_or_claimed_pairing_code')) {
+        throw PairingException(
+          'Kod bulunamadı veya başka bir terapist tarafından kullanılıyor.',
+        );
+      }
+      if (e.message.contains('therapist_role_required')) {
+        throw PairingException('Bu işlem için terapist rolü gereklidir.');
+      }
+      throw PairingException('Kod eşleştirilemedi: ${e.message}');
     }
 
     if (row == null) {
       throw PairingException(
         'Kod bulunamadı. Velinin ürettiği güncel kodu kontrol edin.',
       );
-    }
-
-    // Kodu bu terapiste claim et (rapor erişimi RLS'te buna bakar).
-    try {
-      await _client
-          .from('pairing_codes')
-          .update({'claimed_by': _uid}).eq('code', code);
-    } on PostgrestException catch (e) {
-      throw PairingException('Eşleşme kaydedilemedi: ${e.message}');
     }
 
     final profileJson = row['profile_json'];
@@ -135,8 +136,9 @@ class SupabasePairingRepository implements PairingRepository {
             ).toJson(),
       createdAt:
           DateTime.tryParse(row['created_at'] as String? ?? '') ??
-              DateTime.now(),
+          DateTime.now(),
       parentEmail: row['parent_email'] as String?,
+      parentId: row['parent_id'] as String?,
     );
 
     await _prefs.setString(_linkedCodeKey, code);
@@ -156,9 +158,10 @@ class SupabasePairingRepository implements PairingRepository {
     final code = loadLinkedCode();
     if (code != null) {
       try {
-        await _client
-            .from('pairing_codes')
-            .update({'claimed_by': null}).eq('code', code);
+        await _client.rpc(
+          'release_pairing_code',
+          params: {'invite_code': code},
+        );
       } catch (e) {
         debugPrint('Claim geri alınamadı: $e');
       }

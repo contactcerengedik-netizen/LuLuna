@@ -18,12 +18,43 @@ class ReportsScreen extends ConsumerWidget {
     final role = ref.watch(appStateProvider).role;
     final ruleCount = ref.watch(appStateProvider).therapistRules.rules.length;
     final stats = ref.watch(reportStatsProvider);
+    final remoteHistory = ref.watch(remoteAssistantLogsProvider);
+    final cloudEnabled = ref.watch(supabaseClientProvider) != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Gelişim Raporları')),
+      appBar: AppBar(
+        title: const Text('Gelişim Raporları'),
+        actions: [
+          if (cloudEnabled)
+            IconButton(
+              tooltip: 'Bulut geçmişini yenile',
+              onPressed: () => ref.invalidate(remoteAssistantLogsProvider),
+              icon: const Icon(Icons.cloud_sync_outlined),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (remoteHistory.isLoading) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+          ],
+          if (remoteHistory.hasError) ...[
+            Card(
+              elevation: 0,
+              color: scheme.errorContainer,
+              child: const ListTile(
+                leading: Icon(Icons.cloud_off_outlined),
+                title: Text('Bulut raporları alınamadı'),
+                subtitle: Text(
+                  'Yerel veriler gösteriliyor. Bağlantıyı kontrol edip '
+                  'yenileme düğmesine dokunun.',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           if (stats.isEmpty)
             Card(
               elevation: 0,
@@ -36,9 +67,8 @@ class ReportsScreen extends ConsumerWidget {
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Henüz yeterli veri yok. Canlı Asistan akışı veya '
-                        'Cihaz bağlantısı → Mock izleme başlatınca grafikler '
-                        'dolmaya başlar.',
+                        'Henüz yeterli veri yok. Canlı Asistan veya Cihaz '
+                        'bağlantısı ile izleme başlatınca grafikler dolar.',
                       ),
                     ),
                   ],
@@ -65,24 +95,22 @@ class ReportsScreen extends ConsumerWidget {
             _TriggersCard(triggers: stats.triggerCounts),
             const SizedBox(height: 12),
           ],
-          Card(
-            elevation: 0,
-            color: scheme.primaryContainer.withValues(alpha: 0.45),
-            child: ListTile(
-              leading: const Icon(Icons.edit_note),
-              title: const Text('Dinamik prompt yönetimi'),
-              subtitle: Text(
-                role == UserRole.therapist
-                    ? (ruleCount == 0
-                        ? 'Henüz kural yok. Asistan davranışını buradan güncelleyin.'
-                        : '$ruleCount aktif terapist kuralı.')
-                    : 'Terapist kurallarını görüntüleyin veya düzenleyin '
-                        '(demo: tüm roller erişebilir).',
+          if (role == UserRole.therapist)
+            Card(
+              elevation: 0,
+              color: scheme.primaryContainer.withValues(alpha: 0.45),
+              child: ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: const Text('Dinamik prompt yönetimi'),
+                subtitle: Text(
+                  ruleCount == 0
+                      ? 'Henüz kural yok. Asistan davranışını buradan güncelleyin.'
+                      : '$ruleCount aktif terapist kuralı.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/prompt/rules'),
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/prompt/rules'),
             ),
-          ),
           const SizedBox(height: 12),
           Card(
             elevation: 0,
@@ -161,10 +189,9 @@ class _SummaryTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(label, style: Theme.of(context).textTheme.labelSmall),
           ],
@@ -218,8 +245,10 @@ class _HourlyStressChart extends StatelessWidget {
     if (hourly.every((v) => v == 0)) {
       return const Center(child: Text('Veri bekleniyor…'));
     }
-    final maxVal =
-        hourly.reduce((a, b) => a > b ? a : b).toDouble().clamp(1, 9999);
+    final maxVal = hourly
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble()
+        .clamp(1, 9999);
 
     return LineChart(
       LineChartData(
@@ -280,8 +309,10 @@ class _WeeklyInterventionChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final maxVal =
-        weekly.fold<int>(0, (a, b) => a > b ? a : b).toDouble().clamp(1, 9999);
+    final maxVal = weekly
+        .fold<int>(0, (a, b) => a > b ? a : b)
+        .toDouble()
+        .clamp(1, 9999);
 
     return BarChart(
       BarChartData(

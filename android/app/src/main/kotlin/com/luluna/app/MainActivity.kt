@@ -1,4 +1,4 @@
-package com.example.luluna
+package com.luluna.app
 
 import android.content.Intent
 import android.os.Build
@@ -7,7 +7,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val channelName = "com.example.luluna/background_monitor"
+    private val channelName = "com.luluna.app/background_monitor"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

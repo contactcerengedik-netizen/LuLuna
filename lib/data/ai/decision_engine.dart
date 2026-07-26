@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Gözlemden (metin + opsiyonel kamera karesi) çocuğa söylenecek kısa
 /// yönlendirme cümlesini üreten karar motoru arayüzü.
@@ -12,17 +13,48 @@ abstract class DecisionEngine {
   });
 }
 
+/// Gemini anahtarını mobil uygulamaya koymadan Supabase Edge Function
+/// üzerinden karar üretir. Function çağrısı aktif Supabase oturumunun JWT'sini
+/// taşır; gerçek GEMINI_API_KEY yalnızca sunucu secret'ında tutulur.
+class SupabaseGeminiDecisionEngine implements DecisionEngine {
+  SupabaseGeminiDecisionEngine(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<String> decide({
+    required String systemPrompt,
+    required String observation,
+    List<int>? jpegBytes,
+  }) async {
+    final response = await _client.functions.invoke(
+      'gemini-decide',
+      body: {
+        'systemPrompt': systemPrompt,
+        'observation': observation,
+        if (jpegBytes != null) 'jpegBase64': base64Encode(jpegBytes),
+      },
+    );
+
+    final data = response.data;
+    if (response.status != 200 || data is! Map) {
+      throw StateError('AI servisi yanıt vermedi (${response.status}).');
+    }
+    final text = data['text'] as String?;
+    if (text == null || text.trim().isEmpty) {
+      throw const FormatException('AI servisi yanıtında metin bulunamadı');
+    }
+    return text.trim();
+  }
+}
+
 /// Gemini Developer API'sine doğrudan REST çağrısı yapan implementasyon.
 ///
-/// Not: Resmî `google_generative_ai` paketi kullanımdan kaldırıldığı için
-/// (Kasım 2025) REST + Dio tercih edildi; Adım 5'teki senkronizasyon da
-/// aynı Dio altyapısını kullanacak.
+/// Yalnızca Supabase'siz debug/demo geliştirmede kullanılır. Release
+/// derlemesinde API anahtarı uygulamaya gömülmemelidir.
 class GeminiDecisionEngine implements DecisionEngine {
-  GeminiDecisionEngine({
-    required this.apiKey,
-    required this.model,
-    Dio? dio,
-  }) : _dio = dio ?? Dio();
+  GeminiDecisionEngine({required this.apiKey, required this.model, Dio? dio})
+    : _dio = dio ?? Dio();
 
   final String apiKey;
   final String model;
@@ -40,10 +72,7 @@ class GeminiDecisionEngine implements DecisionEngine {
     final response = await _dio.post<Map<String, dynamic>>(
       '$_baseUrl/$model:generateContent',
       options: Options(
-        headers: {
-          'x-goog-api-key': apiKey,
-          'Content-Type': 'application/json',
-        },
+        headers: {'x-goog-api-key': apiKey, 'Content-Type': 'application/json'},
       ),
       data: buildRequestBody(
         systemPrompt: systemPrompt,
@@ -86,10 +115,7 @@ class GeminiDecisionEngine implements DecisionEngine {
         },
       ],
       // Çocuğa tek kısa cümle söyleneceği için çıktı sınırlı tutulur.
-      'generationConfig': {
-        'temperature': 0.4,
-        'maxOutputTokens': 100,
-      },
+      'generationConfig': {'temperature': 0.4, 'maxOutputTokens': 100},
     };
   }
 

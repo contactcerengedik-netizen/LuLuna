@@ -27,14 +27,14 @@ void main() {
   });
 
   overrides(SharedPreferences prefs) => [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-        logQueueRepositoryProvider.overrideWith(
-          (ref) => LogQueueRepository(
-            databaseFactory: databaseFactoryFfi,
-            databasePath: inMemoryDatabasePath,
-          ),
-        ),
-      ];
+    sharedPreferencesProvider.overrideWithValue(prefs),
+    logQueueRepositoryProvider.overrideWith(
+      (ref) => LogQueueRepository(
+        databaseFactory: databaseFactoryFfi,
+        databasePath: inMemoryDatabasePath,
+      ),
+    ),
+  ];
 
   /// Kayıt → giriş → KVKK (oturum hazır). Kullanıcı id'sini döndürür.
   Future<String> seedReadyAuth(SharedPreferences prefs) async {
@@ -48,15 +48,14 @@ void main() {
     return session.userId;
   }
 
-  testWidgets('ilk açılışta giriş ekranı gösterilir (KVKK yok)', (tester) async {
+  testWidgets('ilk açılışta giriş ekranı gösterilir (KVKK yok)', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -70,10 +69,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -92,10 +88,7 @@ void main() {
     await auth.signInEmail(email: 'veli@test.com', password: 'secret1');
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -106,16 +99,13 @@ void main() {
   testWidgets('her yeni hesapta rol seçimi sorulur', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    await seedReadyAuth(prefs);
-    await prefs.setBool('permissions_intro_seen', true);
+    final userId = await seedReadyAuth(prefs);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
     // Başka bir hesaba ait eski rol bu kullanıcıyı etkilememeli.
     await prefs.setString('user_role', 'therapist');
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -126,14 +116,11 @@ void main() {
   testWidgets('rol seçilmeden ana paneli açamaz', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    await seedReadyAuth(prefs);
-    await prefs.setBool('permissions_intro_seen', true);
+    final userId = await seedReadyAuth(prefs);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -147,18 +134,17 @@ void main() {
     expect(find.text('Panel'), findsNothing);
   });
 
-  testWidgets('terapist eşleşmeden geri ile rol seçimine döner', (tester) async {
+  testWidgets('terapist eşleşmeden geri ile rol seçimine döner', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final userId = await seedReadyAuth(prefs);
-    await prefs.setBool('permissions_intro_seen', true);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
     await ProfileRepository(prefs, userId: userId).saveRole(UserRole.therapist);
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -176,7 +162,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final userId = await seedReadyAuth(prefs);
-    await prefs.setBool('permissions_intro_seen', true);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
     final repo = ProfileRepository(prefs, userId: userId);
     await repo.saveRole(UserRole.parent);
     await repo.saveProfile(
@@ -184,22 +170,27 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Luluna Paneli'), findsOneWidget);
     expect(find.text('Panel'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Luluna Paneli')),
+    );
+    container.read(routerProvider).go('/prompt/rules');
+    await tester.pumpAndSettle();
+    expect(find.text('Luluna Paneli'), findsOneWidget);
+    expect(find.text('Terapist Kuralları'), findsNothing);
   });
 
   testWidgets('terapist alt menüsünde Panel/Asistan yok', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final userId = await seedReadyAuth(prefs);
-    await prefs.setBool('permissions_intro_seen', true);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
     final repo = ProfileRepository(prefs, userId: userId);
     await repo.saveRole(UserRole.therapist);
     await repo.saveProfile(
@@ -208,10 +199,7 @@ void main() {
     await prefs.setString('pairing_linked_code_$userId', 'LUNA-TEST');
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: overrides(prefs),
-        child: const LulunaApp(),
-      ),
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
     );
     await tester.pumpAndSettle();
 
@@ -219,5 +207,24 @@ void main() {
     expect(find.text('Ayarlar'), findsOneWidget);
     expect(find.text('Panel'), findsNothing);
     expect(find.text('Asistan'), findsNothing);
+    expect(find.text('Dinamik prompt yönetimi'), findsOneWidget);
+  });
+
+  testWidgets('veli rolü sonrası çocuk profili (veli kurulumu) açılır', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final userId = await seedReadyAuth(prefs);
+    await prefs.setBool('permissions_intro_seen_$userId', true);
+    await ProfileRepository(prefs, userId: userId).saveRole(UserRole.parent);
+
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(prefs), child: const LulunaApp()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Çocuğun adı'), findsOneWidget);
+    expect(find.text('Çocuk Profili'), findsOneWidget);
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,6 +28,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (role == UserRole.therapist) {
       _index = 0;
     }
+    unawaited(
+      ref
+          .read(appStateProvider.notifier)
+          .refreshTherapistRules()
+          .catchError((_) {}),
+    );
   }
 
   @override
@@ -35,10 +43,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final isTherapist = role == UserRole.therapist;
 
     final pages = isTherapist
-        ? const <Widget>[
-            ReportsScreen(),
-            SettingsScreen(),
-          ]
+        ? const <Widget>[ReportsScreen(), SettingsScreen()]
         : const <Widget>[
             DashboardScreen(),
             LiveAssistantScreen(),
@@ -85,10 +90,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final safeIndex = _index.clamp(0, pages.length - 1);
 
     return Scaffold(
-      body: IndexedStack(
-        index: safeIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: safeIndex, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: safeIndex,
         onDestinationSelected: (index) => setState(() => _index = index),

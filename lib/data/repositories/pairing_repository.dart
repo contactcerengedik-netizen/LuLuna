@@ -95,6 +95,7 @@ class LocalPairingRepository implements PairingRepository {
       profileJson: profile.toJson(),
       createdAt: DateTime.now(),
       parentEmail: parentEmail,
+      parentId: userId,
     );
     final registry = _registry();
     final old = _prefs.getString(_myCodeKey);
@@ -119,6 +120,7 @@ class LocalPairingRepository implements PairingRepository {
       profileJson: profile.toJson(),
       createdAt: link.createdAt,
       parentEmail: link.parentEmail,
+      parentId: link.parentId,
     ).toMap();
     await _saveRegistry(registry);
   }

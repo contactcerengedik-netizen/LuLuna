@@ -3,7 +3,8 @@
 /// Çalıştırma örneği:
 /// flutter run --dart-define-from-file=config/gemini.json
 abstract final class Env {
-  /// API anahtarı yoksa otomatik demo/mock moduna düşer.
+  /// Yalnızca Supabase'siz debug geliştirme için doğrudan Gemini anahtarı.
+  /// Release derlemesinde anahtar Edge Function secret'ında tutulmalıdır.
   static const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
 
   /// Rapor gemini-1.5-flash öngörüyordu; model Eylül 2025'te emekliye
@@ -33,6 +34,12 @@ abstract final class Env {
     }
     return url;
   }
+
+  /// Gizlilik politikası / aydınlatma metni URL'si (mağaza ve KVKK).
+  static const privacyPolicyUrl = String.fromEnvironment(
+    'PRIVACY_POLICY_URL',
+    defaultValue: 'https://luluna.app/privacy',
+  );
 
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 

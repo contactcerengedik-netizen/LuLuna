@@ -72,17 +72,106 @@ drop policy if exists "pairing_parent_all" on public.pairing_codes;
 create policy "pairing_parent_all" on public.pairing_codes
   for all to authenticated using (parent_id = auth.uid()) with check (parent_id = auth.uid());
 
--- Terapist: kodu bildiği sürece satırı okuyabilir (kod tahmin edilemez).
+-- Terapist yalnızca daha önce kendisinin claim ettiği eşleşmeyi okuyabilir.
+-- Davet kodu araması doğrudan SELECT ile değil, aşağıdaki SECURITY DEFINER
+-- RPC üzerinden yapılır; böylece tablo taramasıyla çocuk profilleri sızmaz.
 drop policy if exists "pairing_read_by_code" on public.pairing_codes;
-create policy "pairing_read_by_code" on public.pairing_codes
-  for select to authenticated using (true);
+drop policy if exists "pairing_therapist_select_claimed" on public.pairing_codes;
+create policy "pairing_therapist_select_claimed" on public.pairing_codes
+  for select to authenticated using (claimed_by = auth.uid());
 
--- Terapist: boş kodu kendine claim edebilir.
+-- Claim/release yalnızca RPC ile yapılır.
 drop policy if exists "pairing_claim" on public.pairing_codes;
-create policy "pairing_claim" on public.pairing_codes
-  for update to authenticated
-  using (claimed_by is null or claimed_by = auth.uid())
-  with check (claimed_by = auth.uid());
+
+create or replace function public.claim_pairing_code(invite_code text)
+returns table (
+  code text,
+  parent_id uuid,
+  child_name text,
+  profile_json jsonb,
+  parent_email text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caller uuid := auth.uid();
+begin
+  if caller is null then
+    raise exception 'authentication_required';
+  end if;
+
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = caller and p.role = 'therapist'
+  ) then
+    raise exception 'therapist_role_required';
+  end if;
+
+  return query
+  update public.pairing_codes pc
+  set claimed_by = caller
+  where pc.code = upper(trim(invite_code))
+    and (pc.claimed_by is null or pc.claimed_by = caller)
+  returning
+    pc.code,
+    pc.parent_id,
+    pc.child_name,
+    pc.profile_json,
+    pc.parent_email,
+    pc.created_at;
+
+  if not found then
+    raise exception 'invalid_or_claimed_pairing_code';
+  end if;
+end;
+$$;
+
+create or replace function public.release_pairing_code(invite_code text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'authentication_required';
+  end if;
+
+  update public.pairing_codes
+  set claimed_by = null
+  where code = upper(trim(invite_code))
+    and claimed_by = auth.uid();
+end;
+$$;
+
+revoke all on function public.claim_pairing_code(text) from public;
+revoke all on function public.release_pairing_code(text) from public;
+grant execute on function public.claim_pairing_code(text) to authenticated;
+grant execute on function public.release_pairing_code(text) to authenticated;
+
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caller uuid := auth.uid();
+begin
+  if caller is null then
+    raise exception 'authentication_required';
+  end if;
+
+  -- Uygulama tabloları FK cascade ile temizlenir; auth kullanıcısı da silinir.
+  delete from auth.users where id = caller;
+end;
+$$;
+
+revoke all on function public.delete_own_account() from public;
+grant execute on function public.delete_own_account() to authenticated;
 
 -- ------------------------------------------------------------
 -- 4) assistant_logs — asistan olay akışı (rapor verisi)
@@ -118,5 +207,61 @@ create policy "logs_therapist_select" on public.assistant_logs
       select 1 from public.pairing_codes pc
       where pc.claimed_by = auth.uid()
         and pc.parent_id = assistant_logs.user_id
+    )
+  );
+
+-- ------------------------------------------------------------
+-- 5) therapist_rules — eşleşmiş terapistin çocuk için AI kuralları
+-- ------------------------------------------------------------
+create table if not exists public.therapist_rules (
+  parent_id  uuid primary key references auth.users(id) on delete cascade,
+  rules      jsonb not null default '[]'::jsonb,
+  updated_by uuid not null references auth.users(id) on delete restrict,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.therapist_rules enable row level security;
+
+drop policy if exists "rules_parent_select" on public.therapist_rules;
+create policy "rules_parent_select" on public.therapist_rules
+  for select to authenticated using (parent_id = auth.uid());
+
+drop policy if exists "rules_therapist_select" on public.therapist_rules;
+create policy "rules_therapist_select" on public.therapist_rules
+  for select to authenticated using (
+    exists (
+      select 1 from public.pairing_codes pc
+      where pc.parent_id = therapist_rules.parent_id
+        and pc.claimed_by = auth.uid()
+    )
+  );
+
+drop policy if exists "rules_therapist_insert" on public.therapist_rules;
+create policy "rules_therapist_insert" on public.therapist_rules
+  for insert to authenticated with check (
+    updated_by = auth.uid()
+    and exists (
+      select 1 from public.pairing_codes pc
+      where pc.parent_id = therapist_rules.parent_id
+        and pc.claimed_by = auth.uid()
+    )
+  );
+
+drop policy if exists "rules_therapist_update" on public.therapist_rules;
+create policy "rules_therapist_update" on public.therapist_rules
+  for update to authenticated
+  using (
+    exists (
+      select 1 from public.pairing_codes pc
+      where pc.parent_id = therapist_rules.parent_id
+        and pc.claimed_by = auth.uid()
+    )
+  )
+  with check (
+    updated_by = auth.uid()
+    and exists (
+      select 1 from public.pairing_codes pc
+      where pc.parent_id = therapist_rules.parent_id
+        and pc.claimed_by = auth.uid()
     )
   );

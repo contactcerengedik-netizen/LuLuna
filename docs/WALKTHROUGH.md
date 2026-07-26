@@ -78,14 +78,15 @@ flutter run --dart-define=GEMINI_API_KEY=API_ANAHTARINIZ
 - [x] Çevrimdışı yedek ses (`offline_comfort.wav` + `OfflineFallbackService`)
 - [x] Panelde çevrimiçi/çevrimdışı + bekleyen sync sayısı rozeti
 
-### Adım 6 — Donanım Entegrasyonu (ESP32 + BLE) ✅ (bu adımdayız)
+### Adım 6 — Donanım Entegrasyonu (ESP32 + BLE) ✅
 
-- [x] ESP32-CAM firmware iskeleti (`firmware/esp32_cam/`) — `/capture`, `/stream`, `/status`
-- [x] `HttpCaptureStreamClient` + `FrameSampler` (~1 fps → Gemini)
+- [x] ESP32-CAM firmware iskeleti (`firmware/esp32_cam/`) — `/capture`, `/stream`, `/status`, `/mic`
+- [x] Flutter HTTP capture istemcisi + ~1 fps `FrameSampler`
 - [x] `MockCameraStreamClient` ile donanımsız pipeline demosu
-- [x] `BleAudioOutput` arayüzü + yerel TTS fallback (`LocalBleAudioOutput`)
+- [x] `BleAudioOutput` soyutlaması + yerel TTS fallback
+- [x] Android foreground `LulunaMonitorService`
 - [x] `HardwareMonitor` orkestrasyonu + Cihaz bağlantısı ekranı
-- [x] Android `LulunaMonitorService` foreground service (MethodChannel)
+- [x] Adım 17: mik PCM + gerçekçi batarya (sense organ sprint)
 
 ### Adım 7 — Terapist Paneli ve Raporlama ✅ (son adım)
 
@@ -132,6 +133,93 @@ flutter run --dart-define=GEMINI_API_KEY=API_ANAHTARINIZ
 - [x] Farklı hesapla girildiğinde önceki kullanıcının rolü ve eşleşmesi
       devralınmaz
 
+### Adım 12 — Kanonik giriş akışı ✅
+
+Zorunlu sıra (router ile kilitli):
+
+1. **Giriş / Kayıt** (`/auth`) — her soğuk açılışta
+2. Kayıt olduysa → **Giriş** sekmesi
+3. Giriş sonrası → **KVKK** (hesap başına bir kez)
+4. → **Telefon izinleri** (mikrofon, bildirim, Bluetooth)
+5. → **Rol seçimi** (veli / terapist)
+6. **Veli** → çocuk profili → **veli paneli** (Panel, Asistan, Raporlar, Ayarlar)
+7. **Terapist** → hasta kodu gir → **terapist paneli** (Raporlar, Ayarlar)
+
+- [x] İzin intro bayrağı kullanıcıya göre (`permissions_intro_seen_<uid>`)
+- [x] Giriş sonrası yönlendirmeyi router yönetir
+
+### Adım 13 — Üretim güvenliği, Paket 1 ✅
+
+- [x] `pairing_codes` genel okuma politikası kaldırıldı; davet kodu
+      `claim_pairing_code` SECURITY DEFINER RPC ile tek satır olarak claim edilir
+- [x] Claim bırakma `release_pairing_code` RPC üzerinden yapılır
+- [x] Gemini çağrısı `supabase/functions/gemini-decide` Edge Function'a taşındı;
+      mobil istemcide üretim API anahtarı bulunmaz
+- [x] Doğrudan Gemini anahtarı yalnızca Supabase'siz debug modunda kullanılabilir
+- [x] Google demo butonu ve yerel test hesabı seed'i release derlemesinden çıkarıldı
+
+Supabase'e uygulama:
+
+```bash
+# Önce SQL Editor'de güncel supabase/schema.sql dosyasını çalıştırın.
+supabase secrets set GEMINI_API_KEY=<anahtar> GEMINI_MODEL=gemini-3.5-flash
+supabase functions deploy gemini-decide
+```
+
+Edge Function varsayılan olarak JWT doğrular; yalnızca giriş yapmış uygulama
+kullanıcıları çağırabilir. `GEMINI_API_KEY` artık Flutter
+`--dart-define-from-file` içine üretim için konmamalıdır.
+
+### Adım 14 — Terapist bulut raporları ✅
+
+- [x] `SupabaseRemoteLogClient.fetchRecent()` ile `assistant_logs` geçmişi
+      çekilir; RLS veliye kendi, terapiste yalnızca eşleştiği velinin loglarını verir
+- [x] Canlı ve uzak loglar zaman/tür/mesaj anahtarıyla birleştirilip
+      tekrarları temizlenir
+- [x] Raporlar ekranında bulut yükleme, hata ve elle yenileme durumları vardır
+- [x] Uygulama yeniden açılsa veya terapist başka cihazdan girse grafik geçmişi
+      Supabase üzerinden yeniden oluşur
+
+### Adım 15 — Terapist kuralları bulut senkronu ✅
+
+- [x] `therapist_rules` tablosu ve eşleşmeye dayalı RLS eklendi
+- [x] Terapist kuralı eşleşmiş velinin `parent_id` değeriyle Supabase'e yazar
+- [x] Veli uygulaması açıldığında kuralları buluttan çekip system prompt'a uygular
+- [x] Kural düzenleme ekranı yalnızca terapist rolüne açıktır
+- [x] Eski eşleşme cache'lerinde `parentId` yoksa bir kez yeniden eşleşmek gerekir
+
+### Adım 16 — Mağaza / KVKK hazırlık paketi ✅
+
+- [x] Android/iOS paket kimliği `com.luluna.app` olarak değiştirildi
+- [x] `delete_own_account` RPC + Ayarlar → Hesabı sil
+- [x] Ayarlar → Verilerimi dışa aktar (JSON panoya)
+- [x] Gizlilik politikası URL'si (`PRIVACY_POLICY_URL`, varsayılan
+      https://luluna.app/privacy) + `docs/PRIVACY_POLICY.md` taslağı
+- [x] Mock izleme ve Google demo yalnızca `kDebugMode` içinde
+- [x] BLE gerçek protokolü henüz seçilmedi; yerel TTS fallback korunuyor
+
+### Adım 17 — Sense organ sprint (mik + batarya) ✅
+
+- [x] Firmware: I2S INMP441 pinleri, `/mic` 16-bit PCM, zengin `/status`
+- [x] Batarya: ADC pin 33 veya pin boşsa uptime tabanlı tahmin (`battery_source`)
+- [x] Flutter: `DeviceStatus` genişletildi; `Esp32MicClient` + PCM RMS analizi
+- [x] Canlı izlemede her karede `/mic` enerjisi gözlem metnine eklenir
+- [x] Panel / Cihaz ekranı: batarya kaynağı + mik durumu
+- [x] BLE/A2DP gerçek sürücü hâlâ protokol seçimine bağlı (bilinçli ertelendi)
+
+### Test hesapları (demo)
+
+| Rol | E-posta | Şifre |
+|-----|---------|-------|
+| Veli | `veli@luluna.app` | `veli12` |
+| Terapist | `terapi@luluna.app` | `terapi` |
+
+- Debug giriş ekranında chip ile otomatik doldurulur.
+- Yerel modda (`SUPABASE` yok) uygulama açılışında otomatik seed edilir.
+- Supabase için: `node scripts/seed_test_accounts.mjs`  
+  veya Dashboard → Authentication → Users → Add user (Auto confirm).
+  Email confirm açıksa giriş engellenir; geliştirmede kapatın.
+
 ## Klasör Yapısı (Adım 9 sonrası)
 
 ```
@@ -140,6 +228,8 @@ firmware/esp32_cam/
   README.md
 lib/data/hardware/
   esp32_stream_client.dart
+  esp32_mic_client.dart
+  pcm_audio_stats.dart
   frame_sampler.dart
   ble_audio_output.dart
   hardware_monitor.dart

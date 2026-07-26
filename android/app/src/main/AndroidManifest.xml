@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"/>
     <application
-        android:label="luluna"
+        android:label="Luluna"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -47,6 +47,10 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
         </intent>
     </queries>
 </manifest>

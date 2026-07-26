@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/test_accounts.dart';
 import '../models/auth_session.dart';
 
 /// Kimlik doğrulama arayüzü.
@@ -28,6 +29,9 @@ abstract class AuthRepository {
   Future<void> updateKvkk(KvkkConsent kvkk);
 
   Future<void> signOut();
+
+  /// Hesabı ve ilişkili uygulama verilerini kalıcı olarak siler.
+  Future<void> deleteAccount();
 }
 
 class LocalAuthRepository implements AuthRepository {
@@ -39,6 +43,30 @@ class LocalAuthRepository implements AuthRepository {
   static const _accountsKey = 'auth_accounts';
   static const _namesKey = 'auth_display_names';
   static const _kvkkByEmailKey = 'kvkk_by_email';
+  static const _demoSeededKey = 'demo_test_accounts_seeded_v1';
+
+  /// Uygulama açılışında demo veli/terapist hesaplarını yerelde hazırlar.
+  Future<void> ensureDemoAccounts() async {
+    if (_prefs.getBool(_demoSeededKey) ?? false) {
+      // Hesaplar silinmiş olabilir; eksikleri tamamla.
+    }
+    final accounts = _accounts();
+    final names = _names();
+    var changed = false;
+    for (final demo in TestAccounts.all) {
+      final email = demo.email.toLowerCase();
+      if (!accounts.containsKey(email)) {
+        accounts[email] = hashPassword(demo.password);
+        names[email] = demo.displayName;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await _saveAccounts(accounts);
+      await _saveNames(names);
+    }
+    await _prefs.setBool(_demoSeededKey, true);
+  }
 
   @override
   AuthSession? loadSession() {
@@ -173,6 +201,22 @@ class LocalAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    await _prefs.remove(_sessionKey);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final session = loadSession();
+    if (session == null) {
+      throw AuthException('Silinecek aktif oturum yok.');
+    }
+    final email = session.email.toLowerCase();
+    final accounts = _accounts()..remove(email);
+    final names = _names()..remove(email);
+    final kvkk = _kvkkMap()..remove(email);
+    await _saveAccounts(accounts);
+    await _saveNames(names);
+    await _prefs.setString(_kvkkByEmailKey, jsonEncode(kvkk));
     await _prefs.remove(_sessionKey);
   }
 }

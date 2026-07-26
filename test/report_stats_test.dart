@@ -15,6 +15,21 @@ void main() {
     expect(stats.weeklyInterventionRate, hasLength(7));
   });
 
+  test('yerel ve uzak loglar birleştirilirken tekrarlar temizlenir', () {
+    final duplicate = log(LogType.observation, 'Önde köpek var', base);
+    final remoteOnly = log(
+      LogType.intervention,
+      'Sakin bir nefes al.',
+      base.add(const Duration(seconds: 1)),
+    );
+
+    final merged = mergeAssistantLogs([duplicate], [duplicate, remoteOnly]);
+
+    expect(merged, hasLength(2));
+    expect(merged.first.message, 'Sakin bir nefes al.');
+    expect(buildReportStats(merged, now: base).totalObservations, 1);
+  });
+
   test('gözlem/müdahale/pekiştireç sayıları doğru toplanır', () {
     final logs = [
       log(LogType.observation, 'Önde köpek var', base),
@@ -61,8 +76,11 @@ void main() {
     final logs = [
       log(LogType.intervention, 'bugün', base),
       log(LogType.intervention, 'dün', base.subtract(const Duration(days: 1))),
-      log(LogType.intervention, 'eski',
-          base.subtract(const Duration(days: 10))),
+      log(
+        LogType.intervention,
+        'eski',
+        base.subtract(const Duration(days: 10)),
+      ),
     ];
     final stats = buildReportStats(logs, now: base);
 

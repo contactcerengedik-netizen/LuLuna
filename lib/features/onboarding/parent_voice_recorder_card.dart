@@ -18,16 +18,20 @@ class ParentVoiceRecorderCard extends ConsumerStatefulWidget {
 
 class _ParentVoiceRecorderCardState
     extends ConsumerState<ParentVoiceRecorderCard> {
-  final _recorder = AudioRecorder();
+  AudioRecorder? _recorder;
   var _recording = false;
   var _seconds = 0;
   Timer? _ticker;
   String? _error;
 
+  AudioRecorder get _audio {
+    return _recorder ??= AudioRecorder();
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
-    _recorder.dispose();
+    _recorder?.dispose();
     super.dispose();
   }
 
@@ -43,13 +47,13 @@ class _ParentVoiceRecorderCardState
         setState(() => _error = 'Mikrofon izni gerekli.');
         return;
       }
-      if (!await _recorder.hasPermission()) {
+      if (!await _audio.hasPermission()) {
         setState(() => _error = 'Bu cihazda kayıt izni alınamadı.');
         return;
       }
       final path =
           await ref.read(parentVoiceRepositoryProvider).recordingTargetPath();
-      await _recorder.start(
+      await _audio.start(
         const RecordConfig(encoder: AudioEncoder.aacLc),
         path: path,
       );
@@ -80,7 +84,7 @@ class _ParentVoiceRecorderCardState
     _ticker = null;
     String? path;
     try {
-      path = await _recorder.stop();
+      path = await _audio.stop();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -138,7 +142,10 @@ class _ParentVoiceRecorderCardState
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 FilledButton.tonalIcon(
                   onPressed: _toggle,
@@ -147,7 +154,6 @@ class _ParentVoiceRecorderCardState
                     _recording ? 'Durdur ($_seconds sn)' : 'Kaydet',
                   ),
                 ),
-                const SizedBox(width: 8),
                 if (path != null && !_recording)
                   TextButton(
                     onPressed: _clear,

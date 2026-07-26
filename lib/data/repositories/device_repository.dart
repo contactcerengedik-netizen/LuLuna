@@ -102,11 +102,9 @@ class Esp32DeviceRepository implements DeviceRepository {
         sendTimeout: const Duration(seconds: 3),
       ),
     );
-    final data = response.data ?? const {};
-    final battery = (data['battery'] as num?)?.toInt() ?? 50;
-    return DeviceStatus(
+    return DeviceStatus.fromEsp32StatusJson(
+      response.data ?? const {},
       connection: DeviceConnection.wifi,
-      batteryPercent: battery.clamp(0, 100),
     );
   }
 
@@ -130,6 +128,10 @@ class MockDeviceRepository implements DeviceRepository {
       _status = DeviceStatus(
         connection: DeviceConnection.wifi,
         batteryPercent: next,
+        batterySource: _status.batterySource,
+        micAvailable: _status.micAvailable,
+        uptimeMs: _status.uptimeMs + 30000,
+        freeHeap: _status.freeHeap,
       );
       if (!_controller.isClosed) _controller.add(_status);
     });
@@ -140,6 +142,10 @@ class MockDeviceRepository implements DeviceRepository {
   DeviceStatus _status = const DeviceStatus(
     connection: DeviceConnection.wifi,
     batteryPercent: 87,
+    batterySource: 'estimated',
+    micAvailable: true,
+    uptimeMs: 120000,
+    freeHeap: 120000,
   );
   String? _url;
 
@@ -159,6 +165,10 @@ class MockDeviceRepository implements DeviceRepository {
     return const DeviceStatus(
       connection: DeviceConnection.wifi,
       batteryPercent: 87,
+      batterySource: 'estimated',
+      micAvailable: true,
+      uptimeMs: 120000,
+      freeHeap: 120000,
     );
   }
 

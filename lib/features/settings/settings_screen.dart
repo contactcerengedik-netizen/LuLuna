@@ -1,12 +1,93 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/env.dart';
 import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/auth_repository.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  Future<void> _openPrivacy(BuildContext context) async {
+    final uri = Uri.parse(Env.privacyPolicyUrl);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gizlilik sayfası açılamadı: $uri')),
+      );
+    }
+  }
+
+  Future<void> _exportData(BuildContext context, WidgetRef ref) async {
+    try {
+      final data = await ref
+          .read(appStateProvider.notifier)
+          .exportPersonalData();
+      await Clipboard.setData(
+        ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)),
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veri özeti panoya kopyalandı (JSON)')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Dışa aktarma başarısız: $e')));
+      }
+    }
+  }
+
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hesabı sil?'),
+        content: const Text(
+          'Hesabınız, KVKK kaydınız, eşleşmeleriniz ve buluttaki '
+          'asistan loglarınız kalıcı olarak silinir. Bu işlem geri alınamaz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hesabı sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(appStateProvider.notifier).reset();
+      await ref.read(authStateProvider.notifier).deleteAccount();
+      if (context.mounted) context.go('/auth');
+    } on AuthException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hesap silinemedi: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,9 +107,7 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.account_circle_outlined),
             title: const Text('Hesap'),
             subtitle: Text(
-              auth == null
-                  ? '-'
-                  : '${auth.email} · ${auth.provider.name}',
+              auth == null ? '-' : '${auth.email} · ${auth.provider.name}',
             ),
           ),
           ListTile(
@@ -84,17 +163,18 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/prompt/preview'),
           ),
-          ListTile(
-            leading: const Icon(Icons.edit_note),
-            title: const Text('Terapist kuralları'),
-            subtitle: Text(
-              appState.therapistRules.isEmpty
-                  ? 'Henüz kural yok'
-                  : '${appState.therapistRules.rules.length} kural',
+          if (!isParent)
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: const Text('Terapist kuralları'),
+              subtitle: Text(
+                appState.therapistRules.isEmpty
+                    ? 'Henüz kural yok'
+                    : '${appState.therapistRules.rules.length} kural',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/prompt/rules'),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/prompt/rules'),
-          ),
           if (isParent)
             ListTile(
               leading: const Icon(Icons.sensors),
@@ -104,6 +184,21 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => context.push('/device'),
             ),
           const Divider(height: 32),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Gizlilik politikası'),
+            subtitle: Text(Env.privacyPolicyUrl),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => _openPrivacy(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Verilerimi dışa aktar'),
+            subtitle: const Text(
+              'KVKK taşınabilirlik — JSON panoya kopyalanır',
+            ),
+            onTap: () => _exportData(context, ref),
+          ),
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text('Çıkış yap'),
@@ -151,6 +246,26 @@ class SettingsScreen extends ConsumerWidget {
               if (context.mounted) context.go('/onboarding/role');
             },
           ),
+          ListTile(
+            leading: Icon(
+              Icons.delete_forever_outlined,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Hesabı sil',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            subtitle: const Text(
+              'KVKK silme hakkı — bulut ve yerel hesap verisi kalıcı silinir',
+            ),
+            onTap: () => _deleteAccount(context, ref),
+          ),
+          if (kDebugMode)
+            ListTile(
+              leading: const Icon(Icons.bug_report_outlined),
+              title: const Text('Debug derlemesi'),
+              subtitle: const Text('Mock izleme ve test hesapları açıktır'),
+            ),
         ],
       ),
     );

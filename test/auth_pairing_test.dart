@@ -35,18 +35,21 @@ void main() {
   test('veli kod üretir, terapist eşleşir', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final pairing = LocalPairingRepository(prefs);
+    final parentPairing = LocalPairingRepository(prefs, userId: 'parent-1');
+    final therapistPairing = LocalPairingRepository(
+      prefs,
+      userId: 'therapist-1',
+    );
     const profile = ChildProfile(name: 'Ela', triggers: ['Köpek']);
 
-    final invite = await pairing.createOrRefreshInvite(profile: profile);
+    final invite = await parentPairing.createOrRefreshInvite(profile: profile);
     expect(invite.code, startsWith('LUNA-'));
+    expect(invite.parentId, 'parent-1');
 
-    final joined = await pairing.joinWithCode(invite.code);
+    final joined = await therapistPairing.joinWithCode(invite.code);
     expect(joined.childName, 'Ela');
-    expect(pairing.isPairedAsTherapist, isTrue);
-    expect(
-      ChildProfile.fromJson(joined.profileJson).triggers,
-      ['Köpek'],
-    );
+    expect(joined.parentId, 'parent-1');
+    expect(therapistPairing.isPairedAsTherapist, isTrue);
+    expect(ChildProfile.fromJson(joined.profileJson).triggers, ['Köpek']);
   });
 }

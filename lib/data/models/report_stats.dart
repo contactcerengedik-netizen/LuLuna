@@ -29,9 +29,7 @@ class ReportStats {
       totalObservations == 0 ? 0 : totalInterventions / totalObservations;
 
   bool get isEmpty =>
-      totalObservations == 0 &&
-      totalInterventions == 0 &&
-      totalPraises == 0;
+      totalObservations == 0 && totalInterventions == 0 && totalPraises == 0;
 
   static const empty = ReportStats(
     hourlyStress: [],
@@ -53,11 +51,25 @@ const kTriggerKeywords = <String>[
   'karanlık',
 ];
 
+/// Aynı olay hem canlı akışta hem Supabase geçmişinde bulunabileceği için
+/// rapora girmeden önce birleştirip tekrarları temizler.
+List<AssistantLog> mergeAssistantLogs(
+  List<AssistantLog> local,
+  List<AssistantLog> remote,
+) {
+  final unique = <String, AssistantLog>{};
+  for (final log in [...remote, ...local]) {
+    final key =
+        '${log.timestamp.toUtc().toIso8601String()}|${log.type.name}|${log.message}';
+    unique[key] = log;
+  }
+  final merged = unique.values.toList()
+    ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  return merged;
+}
+
 /// Log listesinden istatistik üretir (saf fonksiyon → kolay test edilir).
-ReportStats buildReportStats(
-  List<AssistantLog> logs, {
-  DateTime? now,
-}) {
+ReportStats buildReportStats(List<AssistantLog> logs, {DateTime? now}) {
   final reference = now ?? DateTime.now();
   final hourly = List<int>.filled(24, 0);
   final triggers = <String, int>{};

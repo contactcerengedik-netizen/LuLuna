@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,15 +44,15 @@ class _DeviceConnectionScreenState
     });
     try {
       final url = _urlController.text.trim();
-      await ref.read(deviceRepositoryProvider).saveEsp32BaseUrl(
-            url.isEmpty ? null : url,
-          );
+      await ref
+          .read(deviceRepositoryProvider)
+          .saveEsp32BaseUrl(url.isEmpty ? null : url);
       if (url.isNotEmpty) {
-        final status =
-            await ref.read(deviceRepositoryProvider).probeEsp32(url);
+        final status = await ref.read(deviceRepositoryProvider).probeEsp32(url);
         setState(() {
           _message = status.isConnected
-              ? 'ESP32 bağlı · batarya %${status.batteryPercent}'
+              ? 'ESP32 bağlı · ${status.batteryLabel}'
+                    '${status.micAvailable ? ' · mik açık' : ' · mik yok'}'
               : 'ESP32 yanıt vermedi';
         });
       } else {
@@ -114,10 +115,13 @@ class _DeviceConnectionScreenState
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(
-            'Gözlük (ESP32-CAM) Wi-Fi üzerinden kare gönderir; ses çıkışı '
-            'kemik iletimli kulaklığa BLE ile yönlenir. Donanım yoksa '
-            'Mock İzleme ile pipeline\'ı test edin.',
+            Text(
+            kDebugMode
+                ? 'Gözlük (ESP32-CAM) Wi-Fi üzerinden kare ve (varsa) mik '
+                      'örneği gönderir. Donanım yoksa Mock İzleme ile '
+                      'pipeline test edilir.'
+                : 'Gözlük (ESP32-CAM) Wi-Fi üzerinden kare ve ortam sesi '
+                      'gönderir; ses çıkışı kemik iletimli kulaklığa yönlenir.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
@@ -136,8 +140,9 @@ class _DeviceConnectionScreenState
               subtitle: Text(
                 status == null
                     ? 'Durum bekleniyor…'
-                    : 'Batarya %${status.batteryPercent} · İzleme: '
-                        '${_modeLabel(monitor.mode)}',
+                    : '${status.batteryLabel} · '
+                          'Mik: ${status.micAvailable ? 'hazır' : 'yok'} · '
+                          'İzleme: ${_modeLabel(monitor.mode)}',
               ),
             ),
           ),
@@ -187,14 +192,16 @@ class _DeviceConnectionScreenState
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  onPressed: _busy || monitor.isRunning ? null : _startMock,
-                  icon: const Icon(Icons.science),
-                  label: const Text('Mock'),
+              if (kDebugMode) ...[
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: _busy || monitor.isRunning ? null : _startMock,
+                    icon: const Icon(Icons.science),
+                    label: const Text('Mock'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _busy || monitor.isRunning ? null : _startLive,
@@ -220,10 +227,10 @@ class _DeviceConnectionScreenState
   }
 
   String _modeLabel(MonitorMode mode) => switch (mode) {
-        MonitorMode.idle => 'kapalı',
-        MonitorMode.mock => 'mock',
-        MonitorMode.live => 'canlı',
-      };
+    MonitorMode.idle => 'kapalı',
+    MonitorMode.mock => 'mock',
+    MonitorMode.live => 'canlı',
+  };
 }
 
 class _PermissionsCard extends ConsumerStatefulWidget {

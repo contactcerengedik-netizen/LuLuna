@@ -3,10 +3,9 @@ import 'package:flutter/services.dart';
 /// Android ön plan servisini MethodChannel ile yönetir.
 /// Uygulama arka plandayken "Luluna izliyor" bildirimi tutar.
 class BackgroundMonitorService {
-  BackgroundMonitorService({
-    MethodChannel? channel,
-  }) : _channel = channel ??
-            const MethodChannel('com.example.luluna/background_monitor');
+  BackgroundMonitorService({MethodChannel? channel})
+    : _channel =
+          channel ?? const MethodChannel('com.luluna.app/background_monitor');
 
   final MethodChannel _channel;
 

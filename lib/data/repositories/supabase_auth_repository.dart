@@ -64,8 +64,7 @@ class SupabaseAuthRepository implements AuthRepository {
       email: user.email ?? '',
       displayName: user.userMetadata?['display_name'] as String?,
       provider: provider,
-      signedInAt:
-          DateTime.tryParse(user.lastSignInAt ?? '') ?? DateTime.now(),
+      signedInAt: DateTime.tryParse(user.lastSignInAt ?? '') ?? DateTime.now(),
       kvkk: _loadKvkkLocal(userId: user.id, email: user.email),
     );
   }
@@ -85,8 +84,8 @@ class SupabaseAuthRepository implements AuthRepository {
           'data_processing': kvkk.dataProcessing,
           'health_data': kvkk.healthData,
           'mic_camera': kvkk.micCamera,
-          'consented_at':
-              (kvkk.consentedAt ?? DateTime.now()).toIso8601String(),
+          'consented_at': (kvkk.consentedAt ?? DateTime.now())
+              .toIso8601String(),
         });
       }
     } catch (e) {
@@ -175,11 +174,7 @@ class SupabaseAuthRepository implements AuthRepository {
         final remote = await _fetchKvkkFromCloud(user.id);
         if (remote != null && remote.isComplete) {
           kvkk = remote;
-          await _saveKvkkLocal(
-            userId: user.id,
-            email: normalized,
-            kvkk: kvkk,
-          );
+          await _saveKvkkLocal(userId: user.id, email: normalized, kvkk: kvkk);
         }
       }
 
@@ -226,6 +221,31 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _client.auth.signOut();
 
+  @override
+  Future<void> deleteAccount() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw AuthException('Silinecek aktif oturum yok.');
+    }
+    final email = user.email ?? '';
+    try {
+      await _client.rpc('delete_own_account');
+    } on sb.PostgrestException catch (e) {
+      throw AuthException('Hesap silinemedi: ${e.message}');
+    } on sb.AuthException catch (e) {
+      throw AuthException(e.message);
+    }
+    await _prefs.remove(_kvkkUserKey(user.id));
+    if (email.isNotEmpty) {
+      await _prefs.remove(_kvkkEmailKey(email));
+    }
+    try {
+      await _client.auth.signOut();
+    } catch (_) {
+      // Hesap zaten silinmiş olabilir.
+    }
+  }
+
   static String _friendly(sb.AuthApiException e) {
     final msg = e.message.toLowerCase();
     if (msg.contains('invalid login credentials')) {
@@ -234,7 +254,8 @@ class SupabaseAuthRepository implements AuthRepository {
     if (msg.contains('email not confirmed')) {
       return 'E-posta henüz doğrulanmadı. Gelen kutunuzu kontrol edin.';
     }
-    if (msg.contains('already registered') || msg.contains('already been registered')) {
+    if (msg.contains('already registered') ||
+        msg.contains('already been registered')) {
       return 'Bu e-posta zaten kayıtlı. Giriş yapın.';
     }
     if (msg.contains('rate limit')) {

@@ -26,6 +26,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/auth',
     refreshListenable: refresh,
+    // Zorunlu akış:
+    // Auth (giriş/kayıt) → KVKK → telefon izinleri → rol
+    //   → veli: çocuk profili → veli paneli
+    //   → terapist: hasta kodu → terapist paneli
     redirect: (context, state) {
       final auth = ref.read(authStateProvider);
       final app = ref.read(appStateProvider);
@@ -38,43 +42,54 @@ final routerProvider = Provider<GoRouter>((ref) {
       final onProfile = loc == '/onboarding/profile';
       final onPermissions = loc == '/onboarding/permissions';
       final onPairing = loc == '/pairing';
+      final onTherapistRules = loc == '/prompt/rules';
 
-      // 0) Oturum yoksa → giriş/kayıt.
+      // 0) İlk açılış / oturum yok → giriş-kayıt.
       if (auth == null) {
         return onAuth ? null : '/auth';
       }
 
-      // 1) İlk giriş sonrası KVKK (bir kez).
+      // 1) Giriş sonrası KVKK (hesap başına bir kez).
       if (!auth.isReady) {
         return onConsent ? null : '/onboarding/consent';
       }
 
-      // 2) Cihaz izinleri (bir kez).
+      // 2) Telefon izinleri (mikrofon / bildirim / Bluetooth).
       final permsSeen = ref.read(permissionsServiceProvider).introSeen;
       if (!permsSeen) {
         return onPermissions ? null : '/onboarding/permissions';
       }
 
-      // 3) Rol yoksa → rol seçimi.
+      // 3) Rol: veli mi, terapist mi?
       if (app.role == null) {
         return onRole ? null : '/onboarding/role';
       }
 
-      // 4) Terapist: eşleşme zorunlu — rol seçimine geri dönebilir.
+      // 4) Terapist → hasta kodu → terapist ekranı (Raporlar).
       if (app.role == UserRole.therapist) {
-        if (!pairing.hasTherapistLink && app.profile == null) {
+        final linked = pairing.hasTherapistLink || app.profile != null;
+        if (!linked) {
           return (onPairing || onRole) ? null : '/pairing';
         }
-        if (onAuth || onProfile || onPermissions || onConsent || onRole) {
+        if (onAuth ||
+            onProfile ||
+            onPermissions ||
+            onConsent ||
+            onRole ||
+            onPairing) {
           return '/home';
         }
         return null;
       }
 
-      // 5) Veli: profil zorunlu — rol ekranına geri dönebilir.
+      // 5) Veli → çocuk profili → veli ekranı (Panel).
       if (app.profile == null) {
         return (onProfile || onRole) ? null : '/onboarding/profile';
       }
+
+      // Veli davet kodu ekranına Ayarlar'dan gidebilir.
+      if (onPairing) return null;
+      if (onTherapistRules) return '/home';
 
       if (onAuth || onConsent || onPermissions || onRole || onProfile) {
         return '/home';
@@ -107,10 +122,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pairing',
         builder: (context, state) => const PairingScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeShell(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const HomeShell()),
       GoRoute(
         path: '/crisis',
         builder: (context, state) => const CrisisScreen(),

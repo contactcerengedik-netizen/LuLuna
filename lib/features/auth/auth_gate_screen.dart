@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/test_accounts.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -36,6 +38,17 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     if (!_tabs.indexIsChanging && mounted) setState(() {});
   }
 
+  void _fillDemo(TestAccount account) {
+    setState(() {
+      _tabs.animateTo(0);
+      _email.text = account.email;
+      _password.text = account.password;
+      _name.text = account.displayName;
+      _error = null;
+      _obscure = false;
+    });
+  }
+
   @override
   void dispose() {
     _tabs.removeListener(_onTabChanged);
@@ -46,7 +59,10 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     super.dispose();
   }
 
-  Future<void> _run(Future<void> Function() action, {required bool isRegister}) async {
+  Future<void> _run(
+    Future<void> Function() action, {
+    required bool isRegister,
+  }) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -58,12 +74,15 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
         _tabs.animateTo(0);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Kayıt tamam. Şimdi giriş yapın — ardından onay ve izinler istenecek.'),
+            content: Text(
+              'Kayıt tamam. Şimdi giriş yapın — ardından KVKK, '
+              'izinler ve rol seçimi istenecek.',
+            ),
           ),
         );
         setState(() {});
       } else {
-        context.go('/onboarding/consent');
+        context.go('/home');
       }
     } on AuthException catch (e) {
       setState(() => _error = e.message);
@@ -74,33 +93,25 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
     }
   }
 
-  Future<void> _signIn() => _run(
-        () async {
-          await ref.read(authStateProvider.notifier).signInEmail(
-                email: _email.text,
-                password: _password.text,
-              );
-        },
-        isRegister: false,
-      );
+  Future<void> _signIn() => _run(() async {
+    await ref
+        .read(authStateProvider.notifier)
+        .signInEmail(email: _email.text, password: _password.text);
+  }, isRegister: false);
 
-  Future<void> _register() => _run(
-        () async {
-          await ref.read(authStateProvider.notifier).registerEmail(
-                email: _email.text,
-                password: _password.text,
-                displayName: _name.text,
-              );
-        },
-        isRegister: true,
-      );
+  Future<void> _register() => _run(() async {
+    await ref
+        .read(authStateProvider.notifier)
+        .registerEmail(
+          email: _email.text,
+          password: _password.text,
+          displayName: _name.text,
+        );
+  }, isRegister: true);
 
-  Future<void> _google() => _run(
-        () async {
-          await ref.read(authStateProvider.notifier).signInWithGoogle();
-        },
-        isRegister: false,
-      );
+  Future<void> _google() => _run(() async {
+    await ref.read(authStateProvider.notifier).signInWithGoogle();
+  }, isRegister: false);
 
   @override
   Widget build(BuildContext context) {
@@ -119,9 +130,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
               'Luluna',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: scheme.primary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: scheme.primary,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -160,9 +171,9 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
               Text(
                 'Kayıt sonrası giriş yapınca KVKK onayı ve cihaz izinleri '
                 'istenir.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
             if (_error != null) ...[
@@ -188,16 +199,49 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen>
                     )
                   : Text(isRegister ? 'Kayıt Ol' : 'Giriş Yap'),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _google,
-              icon: const Icon(Icons.g_mobiledata, size: 28),
-              label: Text(
-                isRegister
-                    ? 'Google ile kayıt ol (demo)'
-                    : 'Google ile giriş (demo)',
+            if (kDebugMode) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _google,
+                icon: const Icon(Icons.g_mobiledata, size: 28),
+                label: Text(
+                  isRegister
+                      ? 'Google ile kayıt ol (demo)'
+                      : 'Google ile giriş (demo)',
+                ),
               ),
-            ),
+            ],
+            if (kDebugMode) ...[
+              const SizedBox(height: 28),
+              Text(
+                'Test hesapları',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final account in TestAccounts.all)
+                    ActionChip(
+                      avatar: Icon(
+                        account.roleHint == 'veli'
+                            ? Icons.family_restroom
+                            : Icons.psychology,
+                        size: 18,
+                      ),
+                      label: Text(
+                        '${account.roleHint}: ${account.email} / ${account.password}',
+                      ),
+                      onPressed: _busy ? null : () => _fillDemo(account),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

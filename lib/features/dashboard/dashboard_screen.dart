@@ -257,9 +257,29 @@ class _DeviceStatusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('%$battery'),
+                Text(status?.batteryLabel ?? '%$battery'),
               ],
             ),
+            if (connected) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    status?.micAvailable == true
+                        ? Icons.mic
+                        : Icons.mic_off,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    status?.micAvailable == true
+                        ? 'Mikrofon hazır'
+                        : 'Mikrofon yok / kapalı',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

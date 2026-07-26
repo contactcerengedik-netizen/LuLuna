@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/app.dart';
 import 'core/env.dart';
 import 'data/providers.dart';
+import 'data/repositories/auth_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +29,11 @@ Future<void> main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Test hesapları yalnızca debug + yerel demo modunda hazırlanır.
+  if (kDebugMode && !Env.hasSupabase) {
+    await LocalAuthRepository(prefs).ensureDemoAccounts();
+  }
 
   // Her soğuk açılışta giriş ekranı gösterilsin: kayıtlı oturumu temizle.
   // Rol/profil kalır; kullanıcı tekrar giriş yaptıktan sonra kaldığı yerden devam eder.

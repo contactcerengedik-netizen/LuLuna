@@ -1,4 +1,4 @@
-package com.example.luluna
+package com.luluna.app
 
 import android.app.Notification
 import android.app.NotificationChannel
