@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/auth_session.dart';
 import '../../data/providers.dart';
 
@@ -46,9 +48,11 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final canSubmit = _accepted && !_busy;
 
     return Scaffold(
+      backgroundColor: LulunaColors.surface,
       appBar: AppBar(
         title: const Text('Açık Rıza'),
         leading: IconButton(
@@ -61,57 +65,140 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+        child: Column(
           children: [
-            Icon(Icons.privacy_tip_outlined, size: 64, color: scheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'KVKK ve Aydınlatma',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: LulunaColors.primary.withValues(alpha: 0.05),
+                        border: Border.all(
+                          color: LulunaColors.primary.withValues(alpha: 0.2),
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.security,
+                        size: 48,
+                        color: LulunaColors.primary,
+                      ),
+                    ),
                   ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'İlk girişinizde bir kez onayınızı alıyoruz. Sonraki girişlerde '
-              'tekrar sorulmaz. Mikrofon, bildirim ve Bluetooth izinleri '
-              'bir sonraki adımda istenecek.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            CheckboxListTile(
-              value: _accepted,
-              onChanged: (v) => setState(() => _accepted = v ?? false),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'Aydınlatma metnini okudum; kişisel / sağlık verilerimin '
-                'işlenmesine açık rıza veriyorum.',
-                style: Theme.of(context).textTheme.bodyMedium,
+                  const SizedBox(height: 16),
+                  Text(
+                    'KVKK ve Aydınlatma',
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'İlk girişinizde bir kez onayınızı alıyoruz. Sonraki '
+                    'girişlerde tekrar sorulmaz. Mikrofon, bildirim ve '
+                    'Bluetooth izinleri bir sonraki adımda istenecek.',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: LulunaColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  LulunaCard(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: _accepted,
+                          onChanged: (v) =>
+                              setState(() => _accepted = v ?? false),
+                          activeColor: LulunaColors.primaryContainer,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              'Aydınlatma metnini okudum; kişisel / sağlık '
+                              'verilerimin işlenmesine açık rıza veriyorum.',
+                              style: textTheme.bodyMedium,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Aydınlatma metni',
+                          icon: const Icon(Icons.info_outline),
+                          color: LulunaColors.onSurfaceVariant,
+                          onPressed: () => _showNotice(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: LulunaColors.error),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TrustMiniCard(
+                          icon: Icons.lock_open,
+                          title: 'Güvenli Veri',
+                          subtitle: 'Uçtan uca şifreleme',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _TrustMiniCard(
+                          icon: Icons.verified_user,
+                          title: 'Tam Şeffaflık',
+                          subtitle: 'İstediğiniz an iptal',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              secondary: IconButton(
-                tooltip: 'Aydınlatma metni',
-                icon: const Icon(Icons.info_outline),
-                onPressed: () => _showNotice(context),
-              ),
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: scheme.error)),
-            ],
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _busy ? null : _continue,
-              child: _busy
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Onayla ve devam et'),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              decoration: BoxDecoration(
+                color: LulunaColors.surface.withValues(alpha: 0.9),
+              ),
+              child: FilledButton(
+                onPressed: canSubmit ? _continue : (_busy ? null : _continue),
+                style: canSubmit
+                    ? null
+                    : FilledButton.styleFrom(
+                        backgroundColor: LulunaColors.surfaceContainerHighest,
+                        foregroundColor: LulunaColors.onSurfaceVariant,
+                        disabledBackgroundColor:
+                            LulunaColors.surfaceContainerHighest,
+                        disabledForegroundColor:
+                            LulunaColors.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
+                        elevation: 0,
+                      ),
+                child: _busy
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Onayla ve devam et'),
+              ),
             ),
           ],
         ),
@@ -158,6 +245,59 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TrustMiniCard extends StatelessWidget {
+  const _TrustMiniCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LulunaColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: LulunaColors.primary, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: LulunaColors.onSurface,
+                        letterSpacing: 0,
+                      ),
+                ),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontSize: 10,
+                        height: 1.2,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
+                        color: LulunaColors.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

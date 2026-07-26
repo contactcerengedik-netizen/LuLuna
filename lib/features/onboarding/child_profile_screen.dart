@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/navigation.dart';
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/child_profile.dart';
 import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
 import 'parent_voice_recorder_card.dart';
-
 
 class ChildProfileScreen extends ConsumerStatefulWidget {
   const ChildProfileScreen({super.key});
@@ -61,7 +62,10 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
+      backgroundColor: LulunaColors.surface,
       appBar: lulunaAppBar(
         context,
         title: 'Çocuk Profili',
@@ -84,12 +88,15 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               Text(
                 'Bu bilgiler yapay zekanın system prompt\'una otomatik '
                 'eklenir ve yönlendirmeler buna göre kişiselleşir.',
-                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+                style: textTheme.labelMedium?.copyWith(
+                  color: LulunaColors.onSurfaceVariant.withValues(alpha: 0.8),
+                ),
               ),
               const SizedBox(height: 24),
               TextFormField(
@@ -104,43 +111,55 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
                     : null,
               ),
               const SizedBox(height: 24),
-              _ChipListEditor(
-                title: 'Fobiler ve tetikleyiciler',
-                hint: 'Örn: Yüksek ses, kalabalık, köpek',
-                items: _triggers,
-                onChanged: (items) => setState(() => _triggers = items),
+              LulunaCard(
+                child: _ChipListEditor(
+                  title: 'Fobiler ve tetikleyiciler',
+                  hint: 'Yeni ekle...',
+                  items: _triggers,
+                  onChanged: (items) => setState(() => _triggers = items),
+                ),
               ),
               const SizedBox(height: 24),
-              _ChipListEditor(
-                title: 'Onu sakinleştiren şeyler',
-                hint: 'Örn: Annesinin sesi, klasik müzik',
-                items: _calmingItems,
-                onChanged: (items) => setState(() => _calmingItems = items),
+              LulunaCard(
+                child: _ChipListEditor(
+                  title: 'Onu sakinleştiren şeyler',
+                  hint: 'Yeni ekle...',
+                  items: _calmingItems,
+                  onChanged: (items) => setState(() => _calmingItems = items),
+                ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Asistanın ses tonu',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              SegmentedButton<VoiceTone>(
-                segments: [
-                  for (final tone in VoiceTone.values)
-                    ButtonSegment(value: tone, label: Text(tone.label)),
-                ],
-                selected: {_voiceTone},
-                onSelectionChanged: (selection) =>
-                    setState(() => _voiceTone = selection.first),
+              LulunaCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Asistanın ses tonu',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    LulunaSegmentedTabs(
+                      labels: [
+                        for (final tone in VoiceTone.values) tone.label,
+                      ],
+                      index: VoiceTone.values.indexOf(_voiceTone),
+                      onChanged: (i) =>
+                          setState(() => _voiceTone = VoiceTone.values[i]),
+                    ),
+                  ],
+                ),
               ),
               if (ref.watch(appStateProvider).role == UserRole.parent) ...[
                 const SizedBox(height: 24),
                 const ParentVoiceRecorderCard(),
               ],
               const SizedBox(height: 32),
-              FilledButton.icon(
+              LulunaPrimaryButton(
+                label: 'Kaydet ve Başla',
+                icon: Icons.check,
                 onPressed: _save,
-                icon: const Icon(Icons.check),
-                label: const Text('Kaydet ve Başla'),
               ),
             ],
           ),
@@ -189,14 +208,21 @@ class _ChipListEditorState extends State<_ChipListEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        Text(
+          widget.title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _controller,
           decoration: InputDecoration(
             hintText: widget.hint,
+            filled: true,
+            fillColor: LulunaColors.surfaceContainerLowest,
             suffixIcon: IconButton(
-              icon: const Icon(Icons.add_circle),
+              icon: const Icon(Icons.add, color: LulunaColors.primary),
               onPressed: _add,
             ),
           ),
@@ -211,6 +237,13 @@ class _ChipListEditorState extends State<_ChipListEditor> {
               for (final item in widget.items)
                 Chip(
                   label: Text(item),
+                  backgroundColor: LulunaColors.secondaryContainer,
+                  labelStyle: const TextStyle(
+                    color: LulunaColors.onSecondaryContainer,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  deleteIconColor: LulunaColors.onSecondaryContainer,
+                  side: BorderSide.none,
                   onDeleted: () => widget.onChanged(
                     [...widget.items]..remove(item),
                   ),

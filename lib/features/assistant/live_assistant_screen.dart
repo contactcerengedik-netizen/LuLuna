@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../app/theme.dart';
 import '../../core/env.dart';
 import '../../data/models/assistant_log.dart';
 import '../../data/providers.dart';
@@ -42,7 +43,6 @@ class _LiveAssistantScreenState extends ConsumerState<LiveAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final logs = ref.watch(assistantLogsProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,15 +51,31 @@ class _LiveAssistantScreenState extends ConsumerState<LiveAssistantScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Center(
-              child: Chip(
-                visualDensity: VisualDensity.compact,
-                avatar: Icon(
-                  Env.hasGeminiKey ? Icons.auto_awesome : Icons.science,
-                  size: 16,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: LulunaColors.secondaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                label: Text(
-                  Env.hasGeminiKey ? 'Gemini' : 'Demo modu',
-                  style: Theme.of(context).textTheme.labelSmall,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Env.hasGeminiKey
+                          ? Icons.auto_awesome
+                          : Icons.flip_camera_ios_outlined,
+                      size: 18,
+                      color: LulunaColors.onSecondaryContainer,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      Env.hasGeminiKey ? 'Gemini' : 'Demo modu',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: LulunaColors.onSecondaryContainer,
+                          ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -85,31 +101,84 @@ class _LiveAssistantScreenState extends ConsumerState<LiveAssistantScreen> {
           SafeArea(
             top: false,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              color: scheme.surfaceContainerLow,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              decoration: BoxDecoration(
+                color: LulunaColors.surfaceContainerLow,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _controller,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Gözlem simüle et: "Önde büyük bir köpek…"',
                         isDense: true,
+                        filled: true,
+                        fillColor: LulunaColors.surfaceContainerLowest,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: BorderSide(
+                            color: LulunaColors.outlineVariant
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: BorderSide(
+                            color: LulunaColors.outlineVariant
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: const BorderSide(
+                            color: LulunaColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendObservation(),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: _sending ? null : _sendObservation,
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
+                  const SizedBox(width: 10),
+                  Material(
+                    color: LulunaColors.primaryContainer,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    shadowColor:
+                        LulunaColors.primaryContainer.withValues(alpha: 0.35),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _sending ? null : _sendObservation,
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Center(
+                          child: _sending
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send, color: Colors.white),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -130,13 +199,18 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.hourglass_empty,
+          const Icon(
+            Icons.smart_toy_outlined,
             size: 48,
-            color: Theme.of(context).colorScheme.outline,
+            color: LulunaColors.primary,
           ),
           const SizedBox(height: 12),
-          const Text('Asistan akışı bekleniyor…'),
+          Text(
+            'Asistan akışı bekleniyor…',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: LulunaColors.onSurfaceVariant,
+                ),
+          ),
         ],
       ),
     );
@@ -151,39 +225,49 @@ class _LogBubble extends StatelessWidget {
   static final _timeFormat = DateFormat.Hms();
 
   (IconData, String) get _typeInfo => switch (log.type) {
-    LogType.observation => (Icons.remove_red_eye_outlined, 'Gözlem'),
-    LogType.intervention => (Icons.record_voice_over, 'Yönlendirme'),
-    LogType.praise => (Icons.stars, 'Pekiştireç'),
-    LogType.system => (Icons.settings_suggest, 'Sistem'),
-  };
+        LogType.observation => (Icons.visibility_outlined, 'Gözlem'),
+        LogType.intervention => (Icons.record_voice_over, 'Yönlendirme'),
+        LogType.praise => (Icons.stars, 'Pekiştireç'),
+        LogType.system => (Icons.settings, 'Sistem'),
+      };
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final (icon, label) = _typeInfo;
     final isIntervention = log.type == LogType.intervention;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 18,
+            radius: 20,
             backgroundColor: isIntervention
-                ? scheme.primaryContainer
-                : scheme.surfaceContainerHigh,
-            child: Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+                ? LulunaColors.secondaryContainer
+                : LulunaColors.surfaceContainerHigh,
+            child: Icon(
+              icon,
+              size: 20,
+              color: isIntervention
+                  ? LulunaColors.onSecondaryContainer
+                  : LulunaColors.onSurfaceVariant,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: isIntervention
-                    ? scheme.primaryContainer
-                    : scheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(14),
+                    ? LulunaColors.secondaryContainer.withValues(alpha: 0.4)
+                    : LulunaColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isIntervention
+                      ? LulunaColors.secondaryContainer
+                      : LulunaColors.outlineVariant.withValues(alpha: 0.3),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,20 +276,36 @@ class _LogBubble extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: isIntervention
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isIntervention
+                                  ? LulunaColors.onSecondaryContainer
+                                  : LulunaColors.onSurfaceVariant,
+                            ),
                       ),
                       const Spacer(),
                       Text(
                         _timeFormat.format(log.timestamp),
-                        style: Theme.of(context).textTheme.labelSmall,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isIntervention
+                                  ? LulunaColors.onSecondaryContainer
+                                      .withValues(alpha: 0.7)
+                                  : LulunaColors.outline,
+                            ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(log.message),
+                  Text(
+                    log.message,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isIntervention
+                              ? const Color(0xFF004F55)
+                              : LulunaColors.onSurface,
+                        ),
+                  ),
                 ],
               ),
             ),

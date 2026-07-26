@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/navigation.dart';
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/therapist_rules.dart';
 import '../../data/providers.dart';
 
@@ -101,7 +103,7 @@ class _TherapistRulesScreenState extends ConsumerState<TherapistRulesScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           if (_busy) ...[
             const LinearProgressIndicator(),
@@ -110,63 +112,193 @@ class _TherapistRulesScreenState extends ConsumerState<TherapistRulesScreen> {
           if (_error != null) ...[
             Text(
               _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              style: const TextStyle(color: LulunaColors.error),
             ),
             const SizedBox(height: 12),
           ],
-          Text(
-            'Bu kurallar system prompt\'a "öncelikli" olarak enjekte edilir. '
-            'Örn: "Kalabalık ortamlarda komut verme, sadece nefes egzersizi yaptır."',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: 'Yeni kural ekle…',
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.add_circle),
-                onPressed: _add,
-              ),
-            ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _add(),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 20),
-          if (_rules.isEmpty)
-            Text(
-              'Henüz kural yok. Genel davranış kuralları geçerli.',
-              style: Theme.of(context).textTheme.bodySmall,
-            )
-          else ...[
-            for (var i = 0; i < _rules.length; i++)
-              Card(
-                elevation: 0,
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    radius: 14,
-                    child: Text(
-                      '${i + 1}',
-                      style: const TextStyle(fontSize: 12),
+          LulunaCard(
+            color: LulunaColors.surfaceContainerLow,
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info, color: LulunaColors.primary, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: LulunaColors.onSurfaceVariant,
+                          ),
+                      children: const [
+                        TextSpan(
+                          text:
+                              'Bu kurallar system prompt\'a ',
+                        ),
+                        TextSpan(
+                          text: "'öncelikli'",
+                          style: TextStyle(
+                            color: LulunaColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(
+                          text:
+                              ' olarak enjekte edilir. Örn: "Kalabalık ortamlarda '
+                              'komut verme, sadece nefes egzersizi yaptır."',
+                        ),
+                      ],
                     ),
                   ),
-                  title: Text(_rules[i]),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () =>
-                        setState(() => _rules = [..._rules]..removeAt(i)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Stack(
+            children: [
+              TextField(
+                controller: _controller,
+                minLines: 4,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Yeni kural ekle…',
+                  filled: true,
+                  fillColor:
+                      LulunaColors.surfaceContainerHighest.withValues(alpha: 0.5),
+                  contentPadding: const EdgeInsets.fromLTRB(16, 16, 64, 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: LulunaColors.primary.withValues(alpha: 0.2),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _add(),
+              ),
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Material(
+                  color: LulunaColors.primary,
+                  shape: const CircleBorder(),
+                  elevation: 4,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _add,
+                    child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Icon(Icons.add_circle, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
           const SizedBox(height: 24),
-          FilledButton.icon(
+          Row(
+            children: [
+              Text(
+                'Aktif Kurallar',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: LulunaColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${_rules.length} Kural',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: LulunaColors.primary,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_rules.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.gavel,
+                    size: 48,
+                    color: LulunaColors.outline.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Henüz kural yok. Genel davranış kuralları geçerli.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: LulunaColors.outline,
+                        ),
+                  ),
+                ],
+              ),
+            )
+          else
+            for (var i = 0; i < _rules.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: LulunaCard(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor:
+                            LulunaColors.primary.withValues(alpha: 0.05),
+                        child: Text(
+                          '${i + 1}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: LulunaColors.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(_rules[i]),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: LulunaColors.error,
+                        ),
+                        onPressed: () =>
+                            setState(() => _rules = [..._rules]..removeAt(i)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          const SizedBox(height: 16),
+          LulunaPrimaryButton(
+            label: 'Kaydet ve Uygula',
+            icon: Icons.check_circle,
             onPressed: _busy ? null : _save,
-            icon: const Icon(Icons.check),
-            label: const Text('Kaydet'),
+            busy: _busy,
           ),
         ],
       ),

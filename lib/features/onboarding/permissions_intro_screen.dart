@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../app/navigation.dart';
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/providers.dart';
 
 /// Onboarding sonrası yumuşak izin karşılama ekranı.
@@ -57,9 +59,10 @@ class _PermissionsIntroScreenState
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      backgroundColor: LulunaColors.surface,
       appBar: lulunaAppBar(
         context,
         title: 'Cihaz İzinleri',
@@ -70,67 +73,102 @@ class _PermissionsIntroScreenState
         },
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              Icon(Icons.shield_moon_outlined, size: 72, color: scheme.primary),
-              const SizedBox(height: 20),
-              Text(
-                'Luluna’nın çalışması için',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                children: [
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: LulunaColors.tertiary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Icon(
+                        Icons.shield,
+                        size: 64,
+                        color: LulunaColors.primaryContainer,
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Luluna’nın çalışması için',
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Bluetooth (kemik iletimli ses), bildirimler (arka plan '
+                    'izleme) ve mikrofon (veli kriz kaydı) izinlerine '
+                    'ihtiyacımız var. Bunları şimdi açıklayıcı şekilde '
+                    'isteyeceğiz.',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: LulunaColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const _PermRow(
+                    icon: Icons.mic,
+                    title: 'Mikrofon',
+                    subtitle: 'Kriz anı için veli ses kaydı',
+                  ),
+                  const SizedBox(height: 16),
+                  const _PermRow(
+                    icon: Icons.notifications,
+                    title: 'Bildirimler',
+                    subtitle: 'Ön plan servisi ve durum uyarıları',
+                  ),
+                  const SizedBox(height: 16),
+                  const _PermRow(
+                    icon: Icons.bluetooth,
+                    title: 'Bluetooth',
+                    subtitle: 'Gözlük / kemik iletimli kulaklık',
+                  ),
+                  if (_status != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _status!,
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: 32),
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: LulunaColors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Bluetooth (kemik iletimli ses), bildirimler (arka plan '
-                'izleme) ve mikrofon (veli kriz kaydı) izinlerine ihtiyacımız '
-                'var. Bunları şimdi açıklayıcı şekilde isteyeceğiz.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  LulunaPrimaryButton(
+                    label: 'İzinleri ver',
+                    busy: _busy,
+                    onPressed: _busy ? null : _request,
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _busy ? null : _skip,
+                    child: const Text('Şimdilik geç'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 28),
-              const _PermRow(
-                icon: Icons.mic_outlined,
-                title: 'Mikrofon',
-                subtitle: 'Kriz anı için veli ses kaydı',
-              ),
-              const _PermRow(
-                icon: Icons.notifications_outlined,
-                title: 'Bildirimler',
-                subtitle: 'Ön plan servisi ve durum uyarıları',
-              ),
-              const _PermRow(
-                icon: Icons.bluetooth,
-                title: 'Bluetooth',
-                subtitle: 'Gözlük / kemik iletimli kulaklık',
-              ),
-              if (_status != null) ...[
-                const SizedBox(height: 12),
-                Text(_status!, textAlign: TextAlign.center),
-              ],
-              const Spacer(),
-              FilledButton(
-                onPressed: _busy ? null : _request,
-                child: _busy
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('İzinleri ver'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _busy ? null : _skip,
-                child: const Text('Şimdilik geç'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -150,14 +188,41 @@ class _PermRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        child: Icon(icon),
+    return LulunaCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          LulunaIconBadge(
+            icon: icon,
+            size: 48,
+            backgroundColor:
+                LulunaColors.primaryContainer.withValues(alpha: 0.1),
+            foregroundColor: LulunaColors.primaryContainer,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            color: LulunaColors.primary.withValues(alpha: 0.3),
+          ),
+        ],
       ),
-      title: Text(title),
-      subtitle: Text(subtitle),
     );
   }
 }

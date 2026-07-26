@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/navigation.dart';
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/pairing_repository.dart';
@@ -79,9 +81,10 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     final role = ref.watch(appStateProvider).role;
     final pairing = ref.watch(pairingStateProvider);
     final isParent = role == UserRole.parent;
-    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
+      backgroundColor: LulunaColors.surface,
       appBar: lulunaAppBar(
         context,
         title: isParent ? 'Terapist Davet Kodu' : 'Hasta Kodu Gir',
@@ -95,103 +98,164 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
               },
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         children: [
-          Icon(
-            isParent ? Icons.qr_code_2 : Icons.link,
-            size: 64,
-            color: scheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isParent
-                ? 'Terapistinize bu kodu verin. Kod, çocuğunuzun profil '
-                    'anlığını taşır; terapist raporlara bağlanır.'
-                : 'Velinin ürettiği LUNA-XXXX kodunu girerek doğru çocuğun '
-                    'verilerine bağlanın.',
-            style: Theme.of(context).textTheme.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 28),
-          if (isParent) ...[
-            if (pairing.myInviteCode != null) ...[
-              SelectableText(
-                pairing.myInviteCode!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
+          const SizedBox(height: 24),
+          LulunaCard(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                LulunaIconBadge(
+                  icon: isParent ? Icons.share : Icons.link,
+                  size: 80,
+                  backgroundColor: LulunaColors.secondaryContainer,
+                  foregroundColor: LulunaColors.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  isParent ? 'Davet Kodu' : 'Kod ile bağlan',
+                  style: textTheme.headlineMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isParent
+                      ? 'Terapistinizin çocuğun verilerine güvenle '
+                          'erişebilmesi için aşağıdaki kodu paylaşın.'
+                      : 'Velinin ürettiği LUNA-XXXX kodunu girerek doğru '
+                          'çocuğun verilerine bağlanın.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: LulunaColors.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 28),
+                if (isParent) ...[
+                  if (pairing.myInviteCode != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: LulunaColors.secondaryContainer
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: LulunaColors.secondary.withValues(alpha: 0.4),
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'AKTİF KOD',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: LulunaColors.onSecondaryContainer,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            pairing.myInviteCode!,
+                            textAlign: TextAlign.center,
+                            style: textTheme.headlineLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 4,
+                              color: LulunaColors.primary,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: pairing.myInviteCode!),
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Kod panoya kopyalandı')),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.copy),
-                label: const Text('Kodu kopyala'),
-              ),
-              const SizedBox(height: 12),
-            ],
-            FilledButton.icon(
-              onPressed: _busy ? null : _generate,
-              icon: const Icon(Icons.refresh),
-              label: Text(
-                pairing.myInviteCode == null
-                    ? 'Davet kodu üret'
-                    : 'Yeni kod üret',
-              ),
+                    const SizedBox(height: 16),
+                    LulunaPrimaryButton(
+                      label: 'Panoya Kopyala',
+                      icon: Icons.content_copy,
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: pairing.myInviteCode!),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Kod panoya kopyalandı'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _busy ? null : _generate,
+                      icon: const Icon(Icons.refresh, size: 20),
+                      label: const Text('Yeni Kod Üret'),
+                    ),
+                  ] else ...[
+                    LulunaPrimaryButton(
+                      label: 'Davet kodu üret',
+                      icon: Icons.refresh,
+                      busy: _busy,
+                      onPressed: _busy ? null : _generate,
+                    ),
+                  ],
+                ] else ...[
+                  TextField(
+                    controller: _codeController,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.5,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'Davet kodu',
+                      prefixIcon: Icon(Icons.vpn_key_outlined),
+                    ),
+                    onSubmitted: (_) => _join(),
+                  ),
+                  const SizedBox(height: 16),
+                  LulunaPrimaryButton(
+                    label: 'Eşleş ve devam et',
+                    icon: Icons.link,
+                    busy: _busy,
+                    onPressed: _busy ? null : _join,
+                  ),
+                  if (pairing.linkedCode != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Mevcut eşleşme: ${pairing.linkedCode}'
+                      '${pairing.linkedChildName != null ? ' · ${pairing.linkedChildName}' : ''}',
+                      textAlign: TextAlign.center,
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+                if (_message != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _message!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: LulunaColors.primary),
+                  ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: LulunaColors.error),
+                  ),
+                ],
+              ],
             ),
-          ] else ...[
-            TextField(
-              controller: _codeController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'Davet kodu',
-                hintText: 'LUNA-AB12',
-                prefixIcon: Icon(Icons.vpn_key_outlined),
-              ),
-              onSubmitted: (_) => _join(),
+          ),
+          const SizedBox(height: 24),
+          const Center(
+            child: Opacity(
+              opacity: 0.4,
+              child: LulunaLogo(size: 48),
             ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _busy ? null : _join,
-              icon: const Icon(Icons.link),
-              label: const Text('Eşleş ve devam et'),
-            ),
-            if (pairing.linkedCode != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Mevcut eşleşme: ${pairing.linkedCode}'
-                '${pairing.linkedChildName != null ? ' · ${pairing.linkedChildName}' : ''}',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ],
-          if (_message != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              _message!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.primary),
-            ),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.error),
-            ),
-          ],
+          ),
         ],
       ),
     );

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/report_stats.dart';
 import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
@@ -14,7 +16,6 @@ class ReportsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final role = ref.watch(appStateProvider).role;
     final ruleCount = ref.watch(appStateProvider).therapistRules.rules.length;
     final stats = ref.watch(reportStatsProvider);
@@ -34,45 +35,63 @@ class ReportsScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         children: [
           if (remoteHistory.isLoading) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 12),
           ],
           if (remoteHistory.hasError) ...[
-            Card(
-              elevation: 0,
-              color: scheme.errorContainer,
-              child: const ListTile(
-                leading: Icon(Icons.cloud_off_outlined),
-                title: Text('Bulut raporları alınamadı'),
-                subtitle: Text(
-                  'Yerel veriler gösteriliyor. Bağlantıyı kontrol edip '
-                  'yenileme düğmesine dokunun.',
-                ),
+            LulunaCard(
+              color: LulunaColors.errorContainer,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    color: LulunaColors.onErrorContainer,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Bulut raporları alınamadı',
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: LulunaColors.onErrorContainer,
+                                  ),
+                        ),
+                        Text(
+                          'Yerel veriler gösteriliyor. Bağlantıyı kontrol edip '
+                          'yenileme düğmesine dokunun.',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: LulunaColors.onErrorContainer,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
           ],
           if (stats.isEmpty)
-            Card(
-              elevation: 0,
-              color: scheme.surfaceContainerLow,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Henüz yeterli veri yok. Canlı Asistan veya Cihaz '
-                        'bağlantısı ile izleme başlatınca grafikler dolar.',
-                      ),
+            LulunaCard(
+              child: Row(
+                children: [
+                  LulunaIconBadge(icon: Icons.info_outline),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Henüz yeterli veri yok. Canlı Asistan veya Cihaz '
+                      'bağlantısı ile izleme başlatınca grafikler dolar.',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             )
           else ...[
@@ -96,33 +115,113 @@ class ReportsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
           if (role == UserRole.therapist)
-            Card(
-              elevation: 0,
-              color: scheme.primaryContainer.withValues(alpha: 0.45),
-              child: ListTile(
-                leading: const Icon(Icons.edit_note),
-                title: const Text('Dinamik prompt yönetimi'),
-                subtitle: Text(
-                  ruleCount == 0
-                      ? 'Henüz kural yok. Asistan davranışını buradan güncelleyin.'
-                      : '$ruleCount aktif terapist kuralı.',
-                ),
-                trailing: const Icon(Icons.chevron_right),
+            Material(
+              color: LulunaColors.secondaryContainer.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
                 onTap: () => context.push('/prompt/rules'),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: LulunaColors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit_note,
+                          color: LulunaColors.onSecondaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dinamik prompt yönetimi',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: LulunaColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                            Text(
+                              ruleCount == 0
+                                  ? 'Henüz kural yok. Asistan davranışını buradan güncelleyin.'
+                                  : '$ruleCount aktif terapist kuralı.',
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: LulunaColors.outline,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           const SizedBox(height: 12),
-          Card(
-            elevation: 0,
-            color: scheme.surfaceContainerLow,
-            child: ListTile(
-              leading: const Icon(Icons.terminal),
-              title: const Text('System prompt önizleme'),
-              subtitle: const Text(
-                'Profil + kurallardan üretilen Gemini system prompt\'unu görün.',
-              ),
-              trailing: const Icon(Icons.chevron_right),
+          Material(
+            color: LulunaColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
               onTap: () => context.push('/prompt/preview'),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: LulunaColors.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.terminal,
+                        color: LulunaColors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'System prompt önizleme',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  color: LulunaColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          Text(
+                            'Profil + kurallardan üretilen Gemini system prompt\'unu görün.',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: LulunaColors.outline,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -143,7 +242,7 @@ class _SummaryRow extends StatelessWidget {
         _SummaryTile(
           label: 'Gözlem',
           value: '${stats.totalObservations}',
-          icon: Icons.remove_red_eye_outlined,
+          icon: Icons.visibility_outlined,
         ),
         const SizedBox(width: 8),
         _SummaryTile(
@@ -175,25 +274,26 @@ class _SummaryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Expanded(
-      child: Container(
+      child: LulunaCard(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(14),
-        ),
         child: Column(
           children: [
-            Icon(icon, color: scheme.primary),
+            Icon(icon, color: LulunaColors.primary),
             const SizedBox(height: 6),
             Text(
               value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: LulunaColors.primary,
+                  ),
             ),
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: LulunaColors.onSurfaceVariant,
+                  ),
+            ),
           ],
         ),
       ),
@@ -214,21 +314,28 @@ class _ChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: scheme.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 16),
-            SizedBox(height: 160, child: child),
-          ],
-        ),
+    return LulunaCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: LulunaColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+          ),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: LulunaColors.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(height: 160, child: child),
+        ],
       ),
     );
   }
@@ -241,7 +348,6 @@ class _HourlyStressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     if (hourly.every((v) => v == 0)) {
       return const Center(child: Text('Veri bekleniyor…'));
     }
@@ -273,7 +379,13 @@ class _HourlyStressChart extends StatelessWidget {
               getTitlesWidget: (value, meta) {
                 final h = value.toInt();
                 if (h % 6 != 0) return const SizedBox.shrink();
-                return Text('$h', style: const TextStyle(fontSize: 10));
+                return Text(
+                  '$h',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: LulunaColors.onSurfaceVariant,
+                  ),
+                );
               },
             ),
           ),
@@ -285,12 +397,12 @@ class _HourlyStressChart extends StatelessWidget {
                 FlSpot(h.toDouble(), hourly[h].toDouble()),
             ],
             isCurved: true,
-            color: scheme.primary,
+            color: LulunaColors.primaryContainer,
             barWidth: 3,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
-              color: scheme.primary.withValues(alpha: 0.18),
+              color: LulunaColors.primaryContainer.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -308,7 +420,6 @@ class _WeeklyInterventionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final maxVal = weekly
         .fold<int>(0, (a, b) => a > b ? a : b)
         .toDouble()
@@ -338,11 +449,18 @@ class _WeeklyInterventionChart extends StatelessWidget {
                 if (i < 0 || i >= _dayLabels.length) {
                   return const SizedBox.shrink();
                 }
+                final isToday = i == weekly.length - 1;
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     _dayLabels[i],
-                    style: const TextStyle(fontSize: 9),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                      color: isToday
+                          ? LulunaColors.primary
+                          : LulunaColors.onSurfaceVariant,
+                    ),
                   ),
                 );
               },
@@ -356,9 +474,13 @@ class _WeeklyInterventionChart extends StatelessWidget {
               barRods: [
                 BarChartRodData(
                   toY: weekly[i].toDouble(),
-                  color: scheme.tertiary,
+                  color: i == weekly.length - 1
+                      ? LulunaColors.primary
+                      : LulunaColors.secondaryContainer.withValues(alpha: 0.55),
                   width: 16,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6),
+                  ),
                 ),
               ],
             ),
@@ -375,60 +497,67 @@ class _TriggersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final entries = triggers.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return Card(
-      elevation: 0,
-      color: scheme.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return LulunaCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tetikleyici dağılımı',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: LulunaColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+          ),
+          const SizedBox(height: 16),
+          if (entries.isEmpty)
             Text(
-              'Tetikleyici dağılımı',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            if (entries.isEmpty)
-              Text(
-                'Henüz tetikleyici algılanmadı.',
-                style: Theme.of(context).textTheme.bodySmall,
-              )
-            else
-              ...entries.map((e) {
-                final max = entries.first.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 90,
-                        child: Text(
-                          e.key,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: max == 0 ? 0 : e.value / max,
-                            minHeight: 10,
-                            backgroundColor: scheme.surfaceContainerHighest,
+              'Henüz tetikleyici algılanmadı.',
+              style: Theme.of(context).textTheme.bodySmall,
+            )
+          else
+            ...entries.map((e) {
+              final max = entries.first.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.key,
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
                         ),
+                        Text(
+                          '${e.value}',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: LulunaColors.primary,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: max == 0 ? 0 : e.value / max,
+                        minHeight: 8,
+                        backgroundColor: LulunaColors.surfaceContainer,
+                        color: LulunaColors.primary,
                       ),
-                      const SizedBox(width: 8),
-                      Text('${e.value}'),
-                    ],
-                  ),
-                );
-              }),
-          ],
-        ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
       ),
     );
   }

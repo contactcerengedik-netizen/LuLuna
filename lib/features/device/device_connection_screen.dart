@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/navigation.dart';
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/hardware/esp32_provision_client.dart';
 import '../../data/hardware/hardware_monitor.dart';
 import '../../data/providers.dart';
@@ -151,97 +153,160 @@ class _DeviceConnectionScreenState
     final status = ref.watch(deviceStatusProvider).value;
     final monitor = ref.watch(hardwareMonitorProvider);
     final ble = ref.watch(bleAudioOutputProvider);
+    final connected = status?.isConnected == true;
 
     return Scaffold(
       appBar: lulunaAppBar(context, title: 'Cihaz Bağlantısı'),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         children: [
-            Text(
+          Text(
             kDebugMode
                 ? 'Gözlük (ESP32-CAM) Wi-Fi üzerinden kare ve (varsa) mik '
                       'örneği gönderir. Donanım yoksa Mock İzleme ile '
                       'pipeline test edilir.'
                 : 'Gözlük (ESP32-CAM) Wi-Fi üzerinden kare ve ortam sesi '
                       'gönderir; ses çıkışı kemik iletimli kulaklığa yönlenir.',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: LulunaColors.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 20),
+          const _PermissionsCard(),
+          const SizedBox(height: 16),
+          LulunaCard(
+            color: LulunaColors.surfaceContainerHighest,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: LulunaColors.surfaceContainer,
+                  child: Icon(
+                    connected ? Icons.visibility : Icons.visibility_off,
+                    color: connected
+                        ? LulunaColors.secondary
+                        : LulunaColors.outline,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        status?.connection.label ?? 'Bağlı değil',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      Text(
+                        status == null
+                            ? 'Durum bekleniyor…'
+                            : '${status.batteryLabel} · '
+                                  'Mik: ${status.micAvailable ? 'hazır' : 'yok'} · '
+                                  'Wi-Fi: ${status.wifiMode}'
+                                  '${status.ip != null ? ' (${status.ip})' : ''} · '
+                                  'İzleme: ${_modeLabel(monitor.mode)}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: connected
+                        ? LulunaColors.secondary
+                        : LulunaColors.outline.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          LulunaCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Wi-Fi Kurulumu (SoftAP)',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: LulunaColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: LulunaColors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color:
+                          LulunaColors.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    '1) Telefonda «${Esp32ProvisionClient.softApSsid}» ağına bağlanın '
+                    '(şifre: ${Esp32ProvisionClient.softApPassword}). '
+                    '2) Ev Wi-Fi bilgisini gönderin. '
+                    '3) Ev Wi-Fi’ye dönüp ${Esp32ProvisionClient.mdnsHint} deneyin.',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: LulunaColors.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _homeSsidController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ev Wi-Fi adı (SSID)',
+                    prefixIcon: Icon(Icons.home_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _homePassController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Ev Wi-Fi şifresi',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : _provisionWifi,
+                        child: const Text('Cihaza Gönder'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy ? null : _useSoftApUrl,
+                        child: const Text('192.168.4.1'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : _useMdnsUrl,
+                    child: const Text('luluna.local'),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
-          const _PermissionsCard(),
-          const SizedBox(height: 20),
-          Card(
-            elevation: 0,
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            child: ListTile(
-              leading: Icon(
-                status?.isConnected == true
-                    ? Icons.visibility
-                    : Icons.visibility_off,
-              ),
-              title: Text(status?.connection.label ?? 'Bağlı değil'),
-              subtitle: Text(
-                status == null
-                    ? 'Durum bekleniyor…'
-                    : '${status.batteryLabel} · '
-                          'Mik: ${status.micAvailable ? 'hazır' : 'yok'} · '
-                          'Wi-Fi: ${status.wifiMode}'
-                          '${status.ip != null ? ' (${status.ip})' : ''} · '
-                          'İzleme: ${_modeLabel(monitor.mode)}',
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('SoftAP kurulum', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          Text(
-            '1) Telefonda «${Esp32ProvisionClient.softApSsid}» ağına bağlanın '
-            '(şifre: ${Esp32ProvisionClient.softApPassword}). '
-            '2) Ev Wi-Fi bilgisini gönderin. '
-            '3) Ev Wi-Fi’ye dönüp ${Esp32ProvisionClient.mdnsHint} deneyin.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _homeSsidController,
-            decoration: const InputDecoration(
-              labelText: 'Ev Wi-Fi adı (SSID)',
-              prefixIcon: Icon(Icons.home_outlined),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _homePassController,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Ev Wi-Fi şifresi',
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton.tonalIcon(
-            onPressed: _busy ? null : _provisionWifi,
-            icon: const Icon(Icons.router),
-            label: const Text('SoftAP’a Wi-Fi gönder'),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _busy ? null : _useSoftApUrl,
-                  child: const Text('192.168.4.1'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _busy ? null : _useMdnsUrl,
-                  child: const Text('luluna.local'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
           TextField(
             controller: _urlController,
             decoration: const InputDecoration(
@@ -277,36 +342,43 @@ class _DeviceConnectionScreenState
               ble.isConnected ? 'BLE yeniden bağlan' : 'BLE çıkışa bağlan',
             ),
           ),
-          const SizedBox(height: 8),
-          FilledButton(
+          const SizedBox(height: 10),
+          LulunaPrimaryButton(
+            label: 'ESP32 adresini kaydet / yokla',
             onPressed: _busy ? null : _saveUrl,
-            child: const Text('ESP32 adresini kaydet / yokla'),
           ),
-          const SizedBox(height: 24),
-          Text('İzleme', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          const SizedBox(height: 28),
+          Text(
+            'İzleme',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: LulunaColors.primary,
+                ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               if (kDebugMode) ...[
                 Expanded(
-                  child: FilledButton.tonalIcon(
-                    onPressed: _busy || monitor.isRunning ? null : _startMock,
-                    icon: const Icon(Icons.science),
-                    label: const Text('Mock'),
+                  child: _MonitorTile(
+                    icon: Icons.science,
+                    label: 'Mock',
+                    filled: false,
+                    onTap: _busy || monitor.isRunning ? null : _startMock,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
               ],
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: _busy || monitor.isRunning ? null : _startLive,
-                  icon: const Icon(Icons.videocam),
-                  label: const Text('Canlı'),
+                child: _MonitorTile(
+                  icon: Icons.videocam,
+                  label: 'Canlı',
+                  filled: true,
+                  onTap: _busy || monitor.isRunning ? null : _startLive,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _busy || !monitor.isRunning ? null : _stop,
             icon: const Icon(Icons.stop),
@@ -314,7 +386,12 @@ class _DeviceConnectionScreenState
           ),
           if (_message != null) ...[
             const SizedBox(height: 16),
-            Text(_message!, style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              _message!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: LulunaColors.onSurfaceVariant,
+                  ),
+            ),
           ],
         ],
       ),
@@ -322,10 +399,57 @@ class _DeviceConnectionScreenState
   }
 
   String _modeLabel(MonitorMode mode) => switch (mode) {
-    MonitorMode.idle => 'kapalı',
-    MonitorMode.mock => 'mock',
-    MonitorMode.live => 'canlı',
-  };
+        MonitorMode.idle => 'kapalı',
+        MonitorMode.mock => 'mock',
+        MonitorMode.live => 'canlı',
+      };
+}
+
+class _MonitorTile extends StatelessWidget {
+  const _MonitorTile({
+    required this.icon,
+    required this.label,
+    required this.filled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = filled
+        ? LulunaColors.primaryContainer
+        : LulunaColors.secondaryContainer;
+    final fg = filled ? Colors.white : LulunaColors.onSecondaryContainer;
+
+    return Material(
+      color: onTap == null ? bg.withValues(alpha: 0.45) : bg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            children: [
+              Icon(icon, size: 32, color: fg),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PermissionsCard extends ConsumerStatefulWidget {
@@ -366,37 +490,53 @@ class _PermissionsCardState extends ConsumerState<_PermissionsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: scheme.primaryContainer.withValues(alpha: 0.4),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LulunaColors.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sistem izinleri',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: LulunaColors.onSecondaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Luluna’nın çalışması için Bluetooth ve bildirim '
+            'izinlerine ihtiyacımız var. Mikrofon, kriz ses kaydı içindir.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: LulunaColors.onSecondaryContainer
+                      .withValues(alpha: 0.9),
+                ),
+          ),
+          if (_summary != null) ...[
+            const SizedBox(height: 8),
             Text(
-              'Sistem izinleri',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Luluna’nın çalışması için Bluetooth ve bildirim '
-              'izinlerine ihtiyacımız var. Mikrofon, kriz ses kaydı içindir.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (_summary != null) ...[
-              const SizedBox(height: 8),
-              Text(_summary!, style: Theme.of(context).textTheme.labelSmall),
-            ],
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _request,
-              icon: const Icon(Icons.verified_user_outlined),
-              label: const Text('İzinleri iste'),
+              _summary!,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: LulunaColors.onSecondaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           ],
-        ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: LulunaColors.onSecondaryContainer,
+              side: const BorderSide(color: LulunaColors.onSecondaryContainer),
+            ),
+            onPressed: _busy ? null : _request,
+            icon: const Icon(Icons.verified_user_outlined),
+            label: const Text('İzinleri iste'),
+          ),
+        ],
       ),
     );
   }

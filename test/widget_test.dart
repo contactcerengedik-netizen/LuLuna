@@ -174,15 +174,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Luluna Paneli'), findsOneWidget);
+    expect(find.textContaining('Merhaba!'), findsOneWidget);
     expect(find.text('Panel'), findsOneWidget);
 
     final container = ProviderScope.containerOf(
-      tester.element(find.text('Luluna Paneli')),
+      tester.element(find.text('Panel')),
     );
     container.read(routerProvider).go('/prompt/rules');
     await tester.pumpAndSettle();
-    expect(find.text('Luluna Paneli'), findsOneWidget);
+    expect(find.textContaining('Merhaba!'), findsOneWidget);
     expect(find.text('Terapist Kuralları'), findsNothing);
   });
 

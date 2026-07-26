@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/theme.dart';
+import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
 
@@ -10,8 +12,10 @@ class RoleSelectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
+      backgroundColor: LulunaColors.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -23,63 +27,63 @@ class RoleSelectionScreen extends ConsumerWidget {
             if (context.mounted) context.go('/auth');
           },
         ),
+        title: const LulunaLogo(size: 32),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               child: ConstrainedBox(
-                constraints:
-                    BoxConstraints(minHeight: constraints.maxHeight - 48),
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32,
+                ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.nightlight_round,
-                      size: 72,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     Text(
                       'Luluna',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: scheme.primary,
-                          ),
+                      style: textTheme.displaySmall?.copyWith(
+                        color: LulunaColors.primaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       'Yapay zeka destekli giyilebilir yol arkadaşı',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: LulunaColors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 40),
                     Text(
                       'Kim olarak devam etmek istiyorsunuz?',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: textTheme.headlineMedium,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       'İlk girişte rolünüzü seçmeniz gerekir. '
                       'Bu seçim asistan deneyimini ve paneli kişiselleştirir.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: LulunaColors.onSurfaceVariant
+                            .withValues(alpha: 0.8),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     _RoleCard(
                       role: UserRole.parent,
                       icon: Icons.family_restroom,
                       description:
-                          'Çocuğunuzun profilini oluşturun, canlı akışı izleyin '
-                          've kriz anlarında müdahale edin.',
+                          'Çocuğunuzun profilini oluşturun, canlı akışı '
+                          'izleyin ve kriz anlarında müdahale edin.',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _RoleCard(
                       role: UserRole.therapist,
                       icon: Icons.psychology,
@@ -87,6 +91,40 @@ class RoleSelectionScreen extends ConsumerWidget {
                           'Gelişim raporlarını inceleyin ve asistanın '
                           'davranış kurallarını güncelleyin.',
                     ),
+                    const SizedBox(height: 48),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Yardıma mı ihtiyacınız var? ',
+                          style: textTheme.labelMedium?.copyWith(
+                            color: LulunaColors.onSurfaceVariant,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Destek Merkezi yakında eklenecek.',
+                                ),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            foregroundColor: LulunaColors.primaryContainer,
+                            textStyle: textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: const Text('Destek Merkezi'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -111,13 +149,11 @@ class _RoleCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      elevation: 0,
-      color: scheme.surfaceContainerLow,
+    return Material(
+      color: LulunaColors.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant),
+        side: const BorderSide(color: LulunaColors.outlineVariant),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -134,10 +170,11 @@ class _RoleCard extends ConsumerWidget {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: scheme.primaryContainer,
-                child: Icon(icon, color: scheme.onPrimaryContainer, size: 30),
+              LulunaIconBadge(
+                icon: icon,
+                size: 48,
+                backgroundColor: LulunaColors.secondaryContainer,
+                foregroundColor: LulunaColors.onSecondaryContainer,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -146,17 +183,26 @@ class _RoleCard extends ConsumerWidget {
                   children: [
                     Text(
                       role.label,
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       description,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: LulunaColors.onSurfaceVariant,
+                          ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const Icon(
+                Icons.chevron_right,
+                color: LulunaColors.onSurfaceVariant,
+              ),
             ],
           ),
         ),
