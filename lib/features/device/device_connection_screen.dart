@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/navigation.dart';
+import '../../data/hardware/esp32_provision_client.dart';
 import '../../data/hardware/hardware_monitor.dart';
 import '../../data/providers.dart';
 
@@ -19,6 +20,8 @@ class _DeviceConnectionScreenState
     extends ConsumerState<DeviceConnectionScreen> {
   late final TextEditingController _urlController;
   late final TextEditingController _bleController;
+  late final TextEditingController _homeSsidController;
+  late final TextEditingController _homePassController;
   var _busy = false;
   String? _message;
 
@@ -28,12 +31,16 @@ class _DeviceConnectionScreenState
     final url = ref.read(deviceRepositoryProvider).esp32BaseUrl ?? '';
     _urlController = TextEditingController(text: url);
     _bleController = TextEditingController(text: 'Luluna-Bone');
+    _homeSsidController = TextEditingController();
+    _homePassController = TextEditingController();
   }
 
   @override
   void dispose() {
     _urlController.dispose();
     _bleController.dispose();
+    _homeSsidController.dispose();
+    _homePassController.dispose();
     super.dispose();
   }
 
@@ -104,6 +111,41 @@ class _DeviceConnectionScreenState
     }
   }
 
+  Future<void> _provisionWifi() async {
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    final client = Esp32ProvisionClient();
+    final result = await client.provision(
+      ssid: _homeSsidController.text,
+      password: _homePassController.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _message = result.message;
+      if (result.ok) {
+        _urlController.text = Esp32ProvisionClient.mdnsHint;
+      }
+    });
+    if (result.ok) {
+      await ref
+          .read(deviceRepositoryProvider)
+          .saveEsp32BaseUrl(Esp32ProvisionClient.mdnsHint);
+    }
+  }
+
+  Future<void> _useSoftApUrl() async {
+    _urlController.text = Esp32ProvisionClient.defaultSoftApUrl;
+    await _saveUrl();
+  }
+
+  Future<void> _useMdnsUrl() async {
+    _urlController.text = Esp32ProvisionClient.mdnsHint;
+    await _saveUrl();
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(deviceStatusProvider).value;
@@ -142,16 +184,69 @@ class _DeviceConnectionScreenState
                     ? 'Durum bekleniyor…'
                     : '${status.batteryLabel} · '
                           'Mik: ${status.micAvailable ? 'hazır' : 'yok'} · '
+                          'Wi-Fi: ${status.wifiMode}'
+                          '${status.ip != null ? ' (${status.ip})' : ''} · '
                           'İzleme: ${_modeLabel(monitor.mode)}',
               ),
             ),
+          ),
+          const SizedBox(height: 20),
+          Text('SoftAP kurulum', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text(
+            '1) Telefonda «${Esp32ProvisionClient.softApSsid}» ağına bağlanın '
+            '(şifre: ${Esp32ProvisionClient.softApPassword}). '
+            '2) Ev Wi-Fi bilgisini gönderin. '
+            '3) Ev Wi-Fi’ye dönüp ${Esp32ProvisionClient.mdnsHint} deneyin.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _homeSsidController,
+            decoration: const InputDecoration(
+              labelText: 'Ev Wi-Fi adı (SSID)',
+              prefixIcon: Icon(Icons.home_outlined),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _homePassController,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Ev Wi-Fi şifresi',
+              prefixIcon: Icon(Icons.lock_outline),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: _busy ? null : _provisionWifi,
+            icon: const Icon(Icons.router),
+            label: const Text('SoftAP’a Wi-Fi gönder'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _busy ? null : _useSoftApUrl,
+                  child: const Text('192.168.4.1'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _busy ? null : _useMdnsUrl,
+                  child: const Text('luluna.local'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           TextField(
             controller: _urlController,
             decoration: const InputDecoration(
               labelText: 'ESP32 adresi',
-              hintText: 'http://192.168.1.42',
+              hintText: 'http://luluna.local',
               prefixIcon: Icon(Icons.wifi_tethering),
             ),
             keyboardType: TextInputType.url,

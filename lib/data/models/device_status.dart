@@ -17,6 +17,9 @@ class DeviceStatus {
     this.micAvailable = false,
     this.uptimeMs = 0,
     this.freeHeap = 0,
+    this.wifiMode = 'unknown',
+    this.ip,
+    this.hostname,
   });
 
   final DeviceConnection connection;
@@ -28,7 +31,14 @@ class DeviceStatus {
   final int uptimeMs;
   final int freeHeap;
 
+  /// `ap` | `sta` | `unknown`
+  final String wifiMode;
+  final String? ip;
+  final String? hostname;
+
   bool get isConnected => connection != DeviceConnection.disconnected;
+
+  bool get isProvisioningAp => wifiMode == 'ap';
 
   String get batteryLabel {
     final src = switch (batterySource) {
@@ -51,6 +61,9 @@ class DeviceStatus {
       micAvailable: data['mic_available'] == true,
       uptimeMs: (data['uptime_ms'] as num?)?.toInt() ?? 0,
       freeHeap: (data['free_heap'] as num?)?.toInt() ?? 0,
+      wifiMode: data['wifi_mode'] as String? ?? 'unknown',
+      ip: data['ip'] as String?,
+      hostname: data['hostname'] as String?,
     );
   }
 }

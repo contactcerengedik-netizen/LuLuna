@@ -4,35 +4,35 @@ Gözlük modülü yalnızca **duyu organı**dır: JPEG kare + (opsiyonel) I2S
 mikrofon PCM verisini telefona akıtır. Yapay zeka kararları Flutter
 uygulamasında verilir.
 
-## Hızlı başlangıç
+## SoftAP kurulum (önerilen)
 
-1. [Arduino IDE](https://www.arduino.cc/) + ESP32 board paketi
-2. Board: **AI Thinker ESP32-CAM**, PSRAM: Enabled
-3. `luluna_cam.ino` içinde `WIFI_SSID` / `WIFI_PASS` doldurun
-4. (Opsiyonel) INMP441: WS=15, SD=13, SCK=14 — yoksa `ENABLE_I2S_MIC 0`
-5. (Opsiyonel) Batarya gerilim bölücü: ADC pin 33 — yoksa tahmini yüzde
-6. Yükleyin → Seri monitörde IP'yi okuyun (115200 baud)
-7. Uygulama: **Ayarlar → Cihaz bağlantısı** → `http://<IP>`
+1. Firmware’i yükleyin (SSID hardcode gerekmez).
+2. Kayıtlı Wi-Fi yoksa cihaz **`Luluna-Setup`** AP açar (şifre: `luluna1234`).
+3. Telefonu bu ağa bağlayın.
+4. Uygulama → **Cihaz bağlantısı** → ev Wi-Fi SSID/şifre gönderin  
+   veya tarayıcıda `http://192.168.4.1`
+5. Cihaz yeniden başlar, ev ağına geçer.
+6. Telefonda ev Wi-Fi’ye dönün → `http://luluna.local` (mDNS) veya STA IP.
+
+Wi-Fi’yi sıfırlamak için (cihaz erişilebilirken): `POST /wifi/reset`
+
+## Lab kısayolu
+
+`WIFI_SSID` / `WIFI_PASS` doldurulursa NVS boşken doğrudan STA denenir.
 
 ## Uç noktalar
 
 | Yol | Açıklama |
 |-----|----------|
-| `GET /capture` | Tek JPEG kare (uygulama ~1 fps örnekler) |
-| `GET /stream` | MJPEG sürekli akış |
-| `GET /status` | JSON: `battery`, `battery_source`, `mic_available`, `uptime_ms`, `free_heap`, `sample_rate` |
-| `GET /mic` | 16-bit mono PCM (~250 ms @ 16 kHz); mik yoksa **204** + `X-Mic-Available: 0` |
-
-### `/mic` yanıt başlıkları
-
-- `X-Mic-Available`: `1` / `0`
-- `X-Sample-Rate`: `16000`
-- `X-Channels`: `1`
-- `X-Bits`: `16`
+| `GET /` | SoftAP HTML kurulum formu |
+| `POST /wifi` | `ssid=` & `pass=` form → NVS + restart |
+| `POST /wifi/reset` | NVS temizle + SoftAP |
+| `GET /capture` | Tek JPEG kare (~1 fps örnekleme) |
+| `GET /stream` | MJPEG |
+| `GET /status` | `battery`, `wifi_mode` (`ap`/`sta`), `ip`, `hostname`, `mic_available`, … |
+| `GET /mic` | 16-bit mono PCM; yoksa **204** |
 
 ## Mimari notu
 
-Thin Client & Brain: firmware'de model çalıştırılmaz; ısınma ve batarya
-maliyetini düşük tutmak için tüm Gemini çağrıları telefonda (veya Edge
-Function üzerinden) yapılır. BLE ses çıkış protokolü henüz sabitlenmedi;
-telefon TTS fallback kullanılır.
+Thin Client & Brain: firmware’de model yok. BLE ses protokolü henüz
+sabitlenmedi; telefon TTS fallback kullanılır.

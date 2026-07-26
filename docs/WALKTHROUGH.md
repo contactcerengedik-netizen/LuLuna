@@ -207,6 +207,15 @@ kullanıcıları çağırabilir. `GEMINI_API_KEY` artık Flutter
 - [x] Panel / Cihaz ekranı: batarya kaynağı + mik durumu
 - [x] BLE/A2DP gerçek sürücü hâlâ protokol seçimine bağlı (bilinçli ertelendi)
 
+### Adım 18 — SoftAP Wi-Fi provisioning ✅
+
+- [x] Firmware: NVS kimlik bilgisi, SoftAP `Luluna-Setup`, `POST /wifi`,
+      `POST /wifi/reset`, mDNS `luluna.local`
+- [x] `/status` → `wifi_mode`, `ip`, `hostname`
+- [x] Flutter: `Esp32ProvisionClient` + Cihaz ekranında SoftAP kurulum formu
+- [x] Panelde AP/STA durumu
+- [x] BLE hâlâ bilinçli olarak ertelendi (protokol belirsiz)
+
 ### Test hesapları (demo)
 
 | Rol | E-posta | Şifre |
@@ -229,6 +238,7 @@ firmware/esp32_cam/
 lib/data/hardware/
   esp32_stream_client.dart
   esp32_mic_client.dart
+  esp32_provision_client.dart
   pcm_audio_stats.dart
   frame_sampler.dart
   ble_audio_output.dart

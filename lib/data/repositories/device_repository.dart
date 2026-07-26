@@ -132,6 +132,9 @@ class MockDeviceRepository implements DeviceRepository {
         micAvailable: _status.micAvailable,
         uptimeMs: _status.uptimeMs + 30000,
         freeHeap: _status.freeHeap,
+        wifiMode: _status.wifiMode,
+        ip: _status.ip,
+        hostname: _status.hostname,
       );
       if (!_controller.isClosed) _controller.add(_status);
     });
@@ -146,6 +149,9 @@ class MockDeviceRepository implements DeviceRepository {
     micAvailable: true,
     uptimeMs: 120000,
     freeHeap: 120000,
+    wifiMode: 'sta',
+    ip: '192.168.1.42',
+    hostname: 'luluna.local',
   );
   String? _url;
 
@@ -169,6 +175,9 @@ class MockDeviceRepository implements DeviceRepository {
       micAvailable: true,
       uptimeMs: 120000,
       freeHeap: 120000,
+      wifiMode: 'sta',
+      ip: '192.168.1.42',
+      hostname: 'luluna.local',
     );
   }
 

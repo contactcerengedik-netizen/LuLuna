@@ -210,8 +210,9 @@ class _DeviceStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final connected = status?.isConnected ?? false;
-    final battery = status?.batteryPercent ?? 0;
+    final device = status;
+    final connected = device?.isConnected ?? false;
+    final battery = device?.batteryPercent ?? 0;
 
     return Card(
       elevation: 0,
@@ -235,7 +236,7 @@ class _DeviceStatusCard extends StatelessWidget {
                 const Spacer(),
                 Chip(
                   label: Text(
-                    status?.connection.label ?? 'Bekleniyor…',
+                    device?.connection.label ?? 'Bekleniyor…',
                   ),
                   avatar: Icon(
                     connected ? Icons.wifi : Icons.signal_wifi_off,
@@ -257,28 +258,35 @@ class _DeviceStatusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(status?.batteryLabel ?? '%$battery'),
+                Text(device?.batteryLabel ?? '%$battery'),
               ],
             ),
-            if (connected) ...[
+            if (connected && device != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
-                    status?.micAvailable == true
-                        ? Icons.mic
-                        : Icons.mic_off,
+                    device.micAvailable ? Icons.mic : Icons.mic_off,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    status?.micAvailable == true
+                    device.micAvailable
                         ? 'Mikrofon hazır'
                         : 'Mikrofon yok / kapalı',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
+              if (device.wifiMode != 'unknown') ...[
+                const SizedBox(height: 6),
+                Text(
+                  device.isProvisioningAp
+                      ? 'Kurulum AP modu · ${device.ip ?? '192.168.4.1'}'
+                      : 'STA · ${device.hostname ?? device.ip ?? '—'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ],
           ],
         ),

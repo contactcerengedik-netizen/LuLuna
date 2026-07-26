@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:luluna/data/hardware/esp32_provision_client.dart';
 import 'package:luluna/data/hardware/pcm_audio_stats.dart';
 import 'package:luluna/data/models/device_status.dart';
 
@@ -40,6 +41,9 @@ void main() {
         'mic_available': true,
         'uptime_ms': 9000,
         'free_heap': 110000,
+        'wifi_mode': 'sta',
+        'ip': '192.168.1.50',
+        'hostname': 'luluna.local',
       });
       expect(status.batteryPercent, 73);
       expect(status.batterySource, 'adc');
@@ -47,6 +51,31 @@ void main() {
       expect(status.uptimeMs, 9000);
       expect(status.batteryLabel, '%73 (ADC)');
       expect(status.isConnected, isTrue);
+      expect(status.wifiMode, 'sta');
+      expect(status.ip, '192.168.1.50');
+      expect(status.isProvisioningAp, isFalse);
+    });
+
+    test('AP modunu tanır', () {
+      final status = DeviceStatus.fromEsp32StatusJson({
+        'battery': 80,
+        'wifi_mode': 'ap',
+        'ip': '192.168.4.1',
+      });
+      expect(status.isProvisioningAp, isTrue);
+    });
+  });
+
+  group('Esp32ProvisionClient.encodeWifiForm', () {
+    test('SSID ve şifreyi URL-encode eder', () {
+      final body = Esp32ProvisionClient.encodeWifiForm(
+        ssid: 'Ev Ağı',
+        password: 'a&b=c',
+      );
+      expect(body, contains('ssid='));
+      expect(body, contains('pass='));
+      expect(body, contains(Uri.encodeQueryComponent('Ev Ağı')));
+      expect(body, contains(Uri.encodeQueryComponent('a&b=c')));
     });
   });
 }

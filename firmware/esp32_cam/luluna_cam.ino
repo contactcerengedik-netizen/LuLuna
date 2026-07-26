@@ -4,47 +4,55 @@
  * Gözlük modülü "duyu organı": kamerayı ve mikrofonu telefona ham veri olarak
  * akıtır. Ağır AI burada ÇALIŞMAZ (Thin Client & Brain mimarisi).
  *
- * Kurulum:
- *  1. Arduino IDE → Board: "AI Thinker ESP32-CAM"
- *  2. Tools → PSRAM: Enabled
- *  3. WIFI_SSID / WIFI_PASS doldurun, yükleyin
- *  4. Seri monitörde IP'yi okuyun (115200 baud)
- *  5. Telefonda Ayarlar → Cihaz bağlantısı → http://IP
+ * Kurulum (SoftAP):
+ *  1. Arduino IDE → Board: "AI Thinker ESP32-CAM", PSRAM: Enabled
+ *  2. Yükleyin. Kayıtlı Wi-Fi yoksa AP açılır: "Luluna-Setup" / luluna1234
+ *  3. Telefonu bu ağa bağlayın → uygulama veya http://192.168.4.1
+ *  4. Ev Wi-Fi SSID/şifre gönderin; cihaz yeniden başlar ve STA'ya geçer
+ *  5. Telefonda ev Wi-Fi'ye dönün → http://luluna.local veya STA IP
+ *
+ * Lab kısayolu: WIFI_SSID / WIFI_PASS doldurulursa NVS yokken doğrudan STA.
  *
  * Uç noktalar:
- *  GET /capture  → tek JPEG kare (uygulama 1 fps örnekler)
- *  GET /stream   → MJPEG sürekli akış
- *  GET /status   → batarya / uptime / mic durumu JSON
- *  GET /mic      → 16-bit mono PCM chunk (I2S bağlıysa; yoksa 204)
+ *  GET  /capture  → tek JPEG kare
+ *  GET  /stream   → MJPEG
+ *  GET  /status   → batarya / wifi_mode / ip / mic JSON
+ *  GET  /mic      → 16-bit mono PCM (yoksa 204)
+ *  GET  /         → SoftAP kurulum formu (AP modunda)
+ *  POST /wifi     → ssid=&pass= (form) → NVS kaydet + restart
+ *  POST /wifi/reset → NVS temizle + SoftAP'a düş
  */
 
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <Preferences.h>
+#include <ESPmDNS.h>
 #include "esp_http_server.h"
 #include <driver/i2s.h>
 
 // --------- Yapılandırma ---------
+// Lab/fallback. SoftAP kullanıyorsanız YOUR_WIFI_* bırakın.
 const char *WIFI_SSID = "YOUR_WIFI_SSID";
 const char *WIFI_PASS = "YOUR_WIFI_PASSWORD";
 
-// INMP441 / I2S MEMS mikrofon. Donanım yoksa 0 yapın → /mic 204 döner.
+static const char *AP_SSID = "Luluna-Setup";
+static const char *AP_PASS = "luluna1234";  // WPA2 min 8
+static const char *MDNS_HOST = "luluna";
+
 #ifndef ENABLE_I2S_MIC
 #define ENABLE_I2S_MIC 1
 #endif
 
-// AI Thinker'da sık kullanılan serbest pinler (kamera ile çakışmaz).
-#define I2S_WS_PIN   15  // LRCL / WS
-#define I2S_SD_PIN   13  // DOUT / SD
-#define I2S_SCK_PIN  14  // BCLK / SCK
+#define I2S_WS_PIN   15
+#define I2S_SD_PIN   13
+#define I2S_SCK_PIN  14
 #define I2S_SAMPLE_RATE 16000
-#define I2S_MIC_SAMPLES 4000  // ~250 ms @ 16 kHz
+#define I2S_MIC_SAMPLES 4000
 
-// Batarya gerilim bölücü ADC pini. Yoksa -1 → uptime tabanlı tahmin.
 #ifndef BATTERY_ADC_PIN
 #define BATTERY_ADC_PIN 33
 #endif
 
-// AI Thinker ESP32-CAM pin haritası
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -64,6 +72,8 @@ const char *WIFI_PASS = "YOUR_WIFI_PASSWORD";
 
 httpd_handle_t server = NULL;
 static bool g_mic_ready = false;
+static bool g_is_ap = false;
+static Preferences g_prefs;
 
 #if ENABLE_I2S_MIC
 static bool init_i2s_mic() {
@@ -95,17 +105,13 @@ static bool init_i2s_mic() {
 
 static int read_battery_percent(const char **source_out) {
 #if BATTERY_ADC_PIN >= 0
-  // Tipik 2S olmayan tek hücre + gerilim bölücü varsayımı:
-  // ADC okuması 0..4095 → yaklaşık 0..3.3V pin; bölücüyle 3.0–4.2V hücre.
   int raw = analogRead(BATTERY_ADC_PIN);
   float v_pin = (raw / 4095.0f) * 3.3f;
-  // 1:2 bölücü varsayımı (Vbat = 2 * Vpin)
   float v_bat = v_pin * 2.0f;
   int pct = (int)((v_bat - 3.2f) / (4.2f - 3.2f) * 100.0f);
   if (pct < 0) pct = 0;
   if (pct > 100) pct = 100;
   if (source_out) *source_out = "adc";
-  // Okuma çok düşükse (pin boş) tahmine düş.
   if (raw < 50) {
     if (source_out) *source_out = "estimated";
     unsigned long minutes = millis() / 60000UL;
@@ -120,6 +126,109 @@ static int read_battery_percent(const char **source_out) {
   if (pct < 15) pct = 15;
   return pct;
 #endif
+}
+
+static bool load_wifi_creds(String &ssid, String &pass) {
+  g_prefs.begin("luluna", true);
+  ssid = g_prefs.getString("ssid", "");
+  pass = g_prefs.getString("pass", "");
+  g_prefs.end();
+  return ssid.length() > 0;
+}
+
+static void save_wifi_creds(const char *ssid, const char *pass) {
+  g_prefs.begin("luluna", false);
+  g_prefs.putString("ssid", ssid);
+  g_prefs.putString("pass", pass);
+  g_prefs.end();
+}
+
+static void clear_wifi_creds() {
+  g_prefs.begin("luluna", false);
+  g_prefs.clear();
+  g_prefs.end();
+}
+
+static bool has_lab_wifi() {
+  return strcmp(WIFI_SSID, "YOUR_WIFI_SSID") != 0 && strlen(WIFI_SSID) > 0;
+}
+
+static bool try_sta(const char *ssid, const char *pass, uint32_t timeout_ms) {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, pass);
+  Serial.printf("STA bağlanıyor: %s", ssid);
+  uint32_t start = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - start) < timeout_ms) {
+    delay(400);
+    Serial.print(".");
+  }
+  Serial.println();
+  if (WiFi.status() == WL_CONNECTED) {
+    g_is_ap = false;
+    if (MDNS.begin(MDNS_HOST)) {
+      MDNS.addService("http", "tcp", 80);
+      Serial.printf("mDNS: http://%s.local\n", MDNS_HOST);
+    }
+    Serial.print("STA IP: ");
+    Serial.println(WiFi.localIP());
+    return true;
+  }
+  WiFi.disconnect(true);
+  return false;
+}
+
+static void start_softap() {
+  g_is_ap = true;
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  delay(100);
+  Serial.printf("SoftAP: %s / %s → http://", AP_SSID, AP_PASS);
+  Serial.println(WiFi.softAPIP());
+}
+
+static int hex_val(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  return -1;
+}
+
+static void url_decode(const char *src, char *dst, size_t dst_len) {
+  size_t di = 0;
+  for (size_t i = 0; src[i] && di + 1 < dst_len; i++) {
+    if (src[i] == '+' ) {
+      dst[di++] = ' ';
+    } else if (src[i] == '%' && src[i + 1] && src[i + 2]) {
+      int hi = hex_val(src[i + 1]);
+      int lo = hex_val(src[i + 2]);
+      if (hi >= 0 && lo >= 0) {
+        dst[di++] = (char)((hi << 4) | lo);
+        i += 2;
+      } else {
+        dst[di++] = src[i];
+      }
+    } else {
+      dst[di++] = src[i];
+    }
+  }
+  dst[di] = '\0';
+}
+
+static bool extract_form_field(const char *body, const char *key, char *out,
+                               size_t out_len) {
+  char needle[40];
+  snprintf(needle, sizeof(needle), "%s=", key);
+  const char *p = strstr(body, needle);
+  if (!p) return false;
+  p += strlen(needle);
+  char enc[96];
+  size_t i = 0;
+  while (*p && *p != '&' && i + 1 < sizeof(enc)) {
+    enc[i++] = *p++;
+  }
+  enc[i] = '\0';
+  url_decode(enc, out, out_len);
+  return out[0] != '\0';
 }
 
 static esp_err_t capture_handler(httpd_req_t *req) {
@@ -138,15 +247,18 @@ static esp_err_t capture_handler(httpd_req_t *req) {
 static esp_err_t status_handler(httpd_req_t *req) {
   const char *battery_source = "estimated";
   int battery = read_battery_percent(&battery_source);
-  char json[220];
+  IPAddress ip = g_is_ap ? WiFi.softAPIP() : WiFi.localIP();
+  char json[320];
   snprintf(
       json, sizeof(json),
       "{\"battery\":%d,\"battery_source\":\"%s\",\"uptime_ms\":%lu,"
       "\"free_heap\":%u,\"mic_available\":%s,\"role\":\"sense_organ\","
-      "\"sample_rate\":%d}",
+      "\"sample_rate\":%d,\"wifi_mode\":\"%s\",\"ip\":\"%u.%u.%u.%u\","
+      "\"hostname\":\"%s.local\"}",
       battery, battery_source, (unsigned long)millis(),
       (unsigned)ESP.getFreeHeap(), g_mic_ready ? "true" : "false",
-      I2S_SAMPLE_RATE);
+      I2S_SAMPLE_RATE, g_is_ap ? "ap" : "sta", ip[0], ip[1], ip[2], ip[3],
+      MDNS_HOST);
   httpd_resp_set_type(req, "application/json");
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   return httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
@@ -161,7 +273,6 @@ static esp_err_t mic_handler(httpd_req_t *req) {
   }
 
 #if ENABLE_I2S_MIC
-  // 32-bit I2S örneklerinden 16-bit PCM üret.
   const size_t samples = I2S_MIC_SAMPLES;
   int32_t *raw = (int32_t *)malloc(samples * sizeof(int32_t));
   int16_t *pcm = (int16_t *)malloc(samples * sizeof(int16_t));
@@ -177,7 +288,6 @@ static esp_err_t mic_handler(httpd_req_t *req) {
                            &bytes_read, pdMS_TO_TICKS(500));
   size_t got = bytes_read / sizeof(int32_t);
   for (size_t i = 0; i < got; i++) {
-    // INMP441 genelde üst 24 bitte anlamlı veri taşır.
     pcm[i] = (int16_t)(raw[i] >> 14);
   }
   free(raw);
@@ -208,6 +318,69 @@ static esp_err_t mic_handler(httpd_req_t *req) {
 #endif
 }
 
+static const char *PORTAL_HTML =
+    "<!DOCTYPE html><html><head><meta charset=utf-8>"
+    "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+    "<title>Luluna Kurulum</title>"
+    "<style>body{font-family:sans-serif;margin:24px;max-width:420px}"
+    "input,button{width:100%;padding:12px;margin:8px 0;font-size:16px}"
+    "button{background:#1a5f4a;color:#fff;border:0}</style></head><body>"
+    "<h1>Luluna</h1><p>Ev Wi-Fi bilgilerini girin.</p>"
+    "<form method=POST action=/wifi>"
+    "<input name=ssid placeholder=\"Wi-Fi adı (SSID)\" required>"
+    "<input name=pass type=password placeholder=\"Şifre\">"
+    "<button type=submit>Kaydet ve bağlan</button></form>"
+    "</body></html>";
+
+static esp_err_t portal_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "text/html");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, PORTAL_HTML, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t wifi_post_handler(httpd_req_t *req) {
+  if (req->content_len <= 0 || req->content_len > 256) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "bad body");
+    return ESP_FAIL;
+  }
+  char body[257];
+  int received = httpd_req_recv(req, body, req->content_len);
+  if (received <= 0) {
+    httpd_resp_send_500(req);
+    return ESP_FAIL;
+  }
+  body[received] = '\0';
+
+  char ssid[64] = {0};
+  char pass[64] = {0};
+  if (!extract_form_field(body, "ssid", ssid, sizeof(ssid))) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "ssid required");
+    return ESP_FAIL;
+  }
+  extract_form_field(body, "pass", pass, sizeof(pass));
+
+  save_wifi_creds(ssid, pass);
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  const char *ok =
+      "{\"ok\":true,\"message\":\"Kaydedildi, yeniden başlıyor\"}";
+  httpd_resp_send(req, ok, HTTPD_RESP_USE_STRLEN);
+  delay(800);
+  ESP.restart();
+  return ESP_OK;
+}
+
+static esp_err_t wifi_reset_handler(httpd_req_t *req) {
+  clear_wifi_creds();
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  const char *ok = "{\"ok\":true,\"message\":\"Wi-Fi silindi, SoftAP\"}";
+  httpd_resp_send(req, ok, HTTPD_RESP_USE_STRLEN);
+  delay(800);
+  ESP.restart();
+  return ESP_OK;
+}
+
 #define PART_BOUNDARY "lulunaboundary"
 static const char *_STREAM_CONTENT_TYPE =
     "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
@@ -233,7 +406,6 @@ static esp_err_t stream_handler(httpd_req_t *req) {
       break;
     }
     esp_camera_fb_return(fb);
-    // ~2 fps stream; uygulama ayrıca /capture ile 1 fps örnekler.
     delay(500);
   }
   return ESP_OK;
@@ -242,7 +414,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 static void start_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
-  config.max_uri_handlers = 8;
+  config.max_uri_handlers = 12;
 
   httpd_uri_t capture_uri = {.uri = "/capture",
                              .method = HTTP_GET,
@@ -258,12 +430,25 @@ static void start_server() {
                             .user_ctx = NULL};
   httpd_uri_t mic_uri = {
       .uri = "/mic", .method = HTTP_GET, .handler = mic_handler, .user_ctx = NULL};
+  httpd_uri_t portal_uri = {
+      .uri = "/", .method = HTTP_GET, .handler = portal_handler, .user_ctx = NULL};
+  httpd_uri_t wifi_uri = {.uri = "/wifi",
+                          .method = HTTP_POST,
+                          .handler = wifi_post_handler,
+                          .user_ctx = NULL};
+  httpd_uri_t wifi_reset_uri = {.uri = "/wifi/reset",
+                                .method = HTTP_POST,
+                                .handler = wifi_reset_handler,
+                                .user_ctx = NULL};
 
   if (httpd_start(&server, &config) == ESP_OK) {
     httpd_register_uri_handler(server, &capture_uri);
     httpd_register_uri_handler(server, &stream_uri);
     httpd_register_uri_handler(server, &status_uri);
     httpd_register_uri_handler(server, &mic_uri);
+    httpd_register_uri_handler(server, &portal_uri);
+    httpd_register_uri_handler(server, &wifi_uri);
+    httpd_register_uri_handler(server, &wifi_reset_uri);
   }
 }
 
@@ -316,17 +501,20 @@ void setup() {
   Serial.println("I2S mikrofon derleme dışı (ENABLE_I2S_MIC=0)");
 #endif
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("Wi-Fi bağlanıyor");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  String nvs_ssid, nvs_pass;
+  bool connected = false;
+  if (load_wifi_creds(nvs_ssid, nvs_pass)) {
+    connected = try_sta(nvs_ssid.c_str(), nvs_pass.c_str(), 20000);
+  } else if (has_lab_wifi()) {
+    connected = try_sta(WIFI_SSID, WIFI_PASS, 20000);
   }
-  Serial.println();
-  Serial.print("Luluna duyu organı hazır: http://");
-  Serial.println(WiFi.localIP());
+
+  if (!connected) {
+    start_softap();
+  }
 
   start_server();
+  Serial.println("Luluna duyu organı hazır");
 }
 
 void loop() {
