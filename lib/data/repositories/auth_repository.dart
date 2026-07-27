@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/test_accounts.dart';
@@ -177,6 +178,11 @@ class LocalAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> signInWithGoogle() async {
+    if (!kDebugMode) {
+      throw AuthException(
+        'Google girişi için Supabase + GOOGLE_WEB_CLIENT_ID gerekli.',
+      );
+    }
     const email = 'demo.user@gmail.com';
     final session = AuthSession(
       userId: 'google_demo_${email.hashCode.abs()}',

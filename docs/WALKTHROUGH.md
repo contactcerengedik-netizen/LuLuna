@@ -216,6 +216,28 @@ kullanıcıları çağırabilir. `GEMINI_API_KEY` artık Flutter
 - [x] Panelde AP/STA durumu
 - [x] BLE hâlâ bilinçli olarak ertelendi (protokol belirsiz)
 
+### Adım 19 — Gerçek Google ile giriş ✅
+
+- [x] `google_sign_in` + Supabase `signInWithIdToken` (native hesap seçici)
+- [x] `GOOGLE_WEB_CLIENT_ID` (zorunlu) / `GOOGLE_IOS_CLIENT_ID` (iOS)
+- [x] Giriş ekranında Google butonu Supabase varken release’de de görünür
+- [x] Yerel (Supabase’siz) modda Google yalnızca debug demo
+
+Kurulum (bir kez):
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials  
+   - **Web** OAuth istemcisi oluştur → Client ID’yi kopyala  
+   - **Android** OAuth istemcisi: paket `com.luluna.app` + SHA-1  
+     (`cd android; ./gradlew signingReport` veya `keytool`)  
+   - **iOS** (isteğe bağlı): bundle `com.luluna.app`
+2. Supabase Dashboard → Authentication → Providers → **Google** aç  
+   - Client ID = Web istemci ID  
+   - Client Secret = Web istemci secret
+3. `config/gemini.json` içine ekle:
+   `"GOOGLE_WEB_CLIENT_ID": "….apps.googleusercontent.com"`
+4. Uygulamayı yeniden çalıştır:
+   `flutter run --dart-define-from-file=config/gemini.json`
+
 ### Test hesapları (demo)
 
 | Rol | E-posta | Şifre |

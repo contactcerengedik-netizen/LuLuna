@@ -41,10 +41,23 @@ abstract final class Env {
     defaultValue: 'https://luluna.app/privacy',
   );
 
+  /// Google Cloud Console → OAuth 2.0 → **Web** istemci kimliği.
+  /// Supabase Google provider + native `signInWithIdToken` için zorunlu.
+  static const googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
+
+  /// Google Cloud Console → OAuth 2.0 → **iOS** istemci kimliği (opsiyonel).
+  static const googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+  );
+
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 
   static bool get hasSyncEndpoint => syncEndpoint.isNotEmpty;
 
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  static bool get hasGoogleSignIn => googleWebClientId.isNotEmpty;
 }

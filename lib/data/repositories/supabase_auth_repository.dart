@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../../core/env.dart';
 import '../models/auth_session.dart';
 import 'auth_repository.dart';
 
@@ -56,14 +58,19 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   AuthSession _toSession(sb.User user) {
-    final provider = user.appMetadata['provider'] == 'google'
-        ? AuthProviderType.google
-        : AuthProviderType.email;
+    final providerMeta = user.appMetadata['provider'] as String?;
+    final providers = user.appMetadata['providers'];
+    final isGoogle = providerMeta == 'google' ||
+        (providers is List && providers.contains('google'));
+    final meta = user.userMetadata ?? const <String, dynamic>{};
+    final displayName = meta['full_name'] as String? ??
+        meta['name'] as String? ??
+        meta['display_name'] as String?;
     return AuthSession(
       userId: user.id,
       email: user.email ?? '',
-      displayName: user.userMetadata?['display_name'] as String?,
-      provider: provider,
+      displayName: displayName,
+      provider: isGoogle ? AuthProviderType.google : AuthProviderType.email,
       signedInAt: DateTime.tryParse(user.lastSignInAt ?? '') ?? DateTime.now(),
       kvkk: _loadKvkkLocal(userId: user.id, email: user.email),
     );
@@ -199,10 +206,100 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> signInWithGoogle() async {
-    throw AuthException(
-      'Google girişi için OAuth yönlendirme kurulumu henüz yapılmadı. '
-      'Şimdilik e-posta/şifre ile devam edin.',
-    );
+    if (!Env.hasGoogleSignIn) {
+      throw AuthException(
+        'Google girişi için config/gemini.json içine '
+        'GOOGLE_WEB_CLIENT_ID ekleyin (Google Cloud Web OAuth istemcisi).',
+      );
+    }
+
+    try {
+      final google = GoogleSignIn.instance;
+      await google.initialize(
+        clientId:
+            Env.googleIosClientId.isEmpty ? null : Env.googleIosClientId,
+        serverClientId: Env.googleWebClientId,
+      );
+
+      final account = await google.authenticate(
+        scopeHint: const ['email', 'profile'],
+      );
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw AuthException(
+          'Google kimlik jetonu alınamadı. Web Client ID ve '
+          'Android SHA-1 / iOS bundle ayarlarını kontrol edin.',
+        );
+      }
+
+      String? accessToken;
+      try {
+        final silent = await account.authorizationClient
+            .authorizationForScopes(const ['email', 'profile']);
+        accessToken = silent?.accessToken;
+        if (accessToken == null) {
+          final prompted = await account.authorizationClient.authorizeScopes(
+            const ['email', 'profile'],
+          );
+          accessToken = prompted.accessToken;
+        }
+      } catch (e) {
+        debugPrint('Google accessToken alınamadı (idToken yeterli): $e');
+      }
+
+      final res = await _client.auth.signInWithIdToken(
+        provider: sb.OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+      final user = res.user;
+      if (user == null) {
+        throw AuthException('Google girişi başarısız oldu, tekrar deneyin.');
+      }
+
+      var kvkk = _loadKvkkLocal(userId: user.id, email: user.email);
+      if (!kvkk.isComplete) {
+        final remote = await _fetchKvkkFromCloud(user.id);
+        if (remote != null && remote.isComplete) {
+          kvkk = remote;
+          await _saveKvkkLocal(
+            userId: user.id,
+            email: user.email ?? '',
+            kvkk: kvkk,
+          );
+        }
+      }
+
+      try {
+        await _client.from('profiles').upsert({
+          'id': user.id,
+          'email': user.email,
+          'display_name': user.userMetadata?['full_name'] ??
+              user.userMetadata?['name'] ??
+              user.userMetadata?['display_name'],
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('Profil upsert ertelendi: $e');
+      }
+
+      return _toSession(user);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw AuthException('Google girişi iptal edildi.');
+      }
+      throw AuthException(
+        'Google girişi başarısız: ${e.description ?? e.code.name}',
+      );
+    } on sb.AuthApiException catch (e) {
+      throw AuthException(_friendly(e));
+    } on sb.AuthException catch (e) {
+      throw AuthException(e.message);
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      throw AuthException('Google girişi başarısız: $e');
+    }
   }
 
   @override
@@ -219,8 +316,14 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signOut() => _client.auth.signOut();
-
+  Future<void> signOut() async {
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {
+      // Google oturumu yoksa sorun değil.
+    }
+    await _client.auth.signOut();
+  }
   @override
   Future<void> deleteAccount() async {
     final user = _client.auth.currentUser;

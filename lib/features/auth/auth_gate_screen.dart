@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 import '../../app/widgets/luluna_ui.dart';
+import '../../core/env.dart';
 import '../../core/test_accounts.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -198,7 +199,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       }
                     },
                   ),
-                  if (kDebugMode) ...[
+                  if (Env.hasSupabase || kDebugMode) ...[
                     const SizedBox(height: 24),
                     Row(
                       children: [
@@ -221,11 +222,17 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       onPressed: _busy ? null : _google,
                       icon: const Icon(Icons.g_mobiledata, size: 28),
                       label: Text(
-                        isRegister
-                            ? 'Google ile kayıt ol (demo)'
-                            : 'Google ile giriş (demo)',
+                        Env.hasSupabase
+                            ? (isRegister
+                                ? 'Google ile kayıt ol'
+                                : 'Google ile giriş')
+                            : (isRegister
+                                ? 'Google ile kayıt ol (demo)'
+                                : 'Google ile giriş (demo)'),
                       ),
                     ),
+                  ],
+                  if (kDebugMode) ...[
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
