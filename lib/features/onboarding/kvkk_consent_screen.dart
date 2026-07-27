@@ -50,6 +50,14 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final canSubmit = _accepted && !_busy;
+    final bodyStyle = textTheme.bodyMedium?.copyWith(
+      color: LulunaColors.onSurfaceVariant,
+      height: 1.45,
+    );
+    final headingStyle = textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+      color: LulunaColors.onSurface,
+    );
 
     return Scaffold(
       backgroundColor: LulunaColors.surface,
@@ -69,12 +77,12 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 children: [
                   Center(
                     child: Container(
-                      width: 96,
-                      height: 96,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: LulunaColors.primary.withValues(alpha: 0.05),
@@ -85,12 +93,12 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
                       ),
                       child: const Icon(
                         Icons.security,
-                        size: 48,
+                        size: 36,
                         color: LulunaColors.primary,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Text(
                     'KVKK ve Aydınlatma',
                     textAlign: TextAlign.center,
@@ -99,51 +107,158 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'İlk girişinizde bir kez onayınızı alıyoruz. Sonraki '
-                    'girişlerde tekrar sorulmaz. Mikrofon, bildirim ve '
-                    'Bluetooth izinleri bir sonraki adımda istenecek.',
+                    'girişlerde tekrar sorulmaz. Aşağıdaki metni okuyup '
+                    'kaydırarak ilerleyin; ardından açık rızanızı verin.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(
                       color: LulunaColors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                   LulunaCard(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-                    child: Row(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Checkbox(
-                          value: _accepted,
-                          onChanged: (v) =>
-                              setState(() => _accepted = v ?? false),
-                          activeColor: LulunaColors.primaryContainer,
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Text(
-                              'Aydınlatma metnini okudum; kişisel / sağlık '
-                              'verilerimin işlenmesine açık rıza veriyorum.',
-                              style: textTheme.bodyMedium,
-                            ),
+                        Text(
+                          'Aydınlatma ve Açık Rıza Metni',
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Aydınlatma metni',
-                          icon: const Icon(Icons.info_outline),
-                          color: LulunaColors.onSurfaceVariant,
-                          onPressed: () => _showNotice(context),
+                        const SizedBox(height: 16),
+                        Text(
+                          '1. Veri Sorumlusunun Kimliği',
+                          style: headingStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Luluna ("Uygulama") olarak, 6698 sayılı Kişisel '
+                          'Verilerin Korunması Kanunu ("KVKK") uyarınca, '
+                          'kişisel verileriniz ve özel nitelikli kişisel '
+                          'verileriniz veri sorumlusu sıfatıyla tarafımızca '
+                          'işlenmektedir. Amacımız, yapay zeka destekli '
+                          'asistan hizmetini en güvenli ve şeffaf şekilde '
+                          'sunmaktır.',
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '2. İşlenen Veriler ve İşlenme Amacı',
+                          style: headingStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Uygulama üzerinden sağladığınız profil bilgileri '
+                          '(isim, iletişim bilgileri), rolünüz '
+                          '(Veli/Terapist) ve donanım üzerinden alınan '
+                          'veriler şu amaçlarla işlenmektedir:',
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(height: 10),
+                        Text.rich(
+                          TextSpan(
+                            style: bodyStyle,
+                            children: [
+                              TextSpan(
+                                text: 'Özel Nitelikli Sağlık Verileri: ',
+                                style: bodyStyle?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: LulunaColors.onSurface,
+                                ),
+                              ),
+                              const TextSpan(
+                                text:
+                                    'Profil ekranında girilen '
+                                    'tetikleyiciler, fobiler, sakinleştirici '
+                                    'unsurlar ve kriz anı stres göstergeleri, '
+                                    'yapay zekanın (Gemini) anlık asistanlık '
+                                    've yönlendirme hizmetini (System Prompt) '
+                                    'kişiselleştirmesi amacıyla işlenir.',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text.rich(
+                          TextSpan(
+                            style: bodyStyle,
+                            children: [
+                              TextSpan(
+                                text:
+                                    'Sensör ve Medya Verileri (Ses/Görüntü): ',
+                                style: bodyStyle?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: LulunaColors.onSurface,
+                                ),
+                              ),
+                              const TextSpan(
+                                text:
+                                    'Cihaz donanımı (ESP32-CAM ve mikrofon) '
+                                    'üzerinden sağlanan canlı akış ve ses '
+                                    'verileri, kriz tespiti ve veli '
+                                    'müdahalesi amacıyla işlenir. Veli '
+                                    'tarafından kaydedilen kriz anı telkin '
+                                    'ses kayıtları yalnızca kullanıcının '
+                                    'yerel cihazında (lokal) saklanmaktadır.',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '3. Verilerin Aktarımı '
+                          '(Terapist ve Bulut Entegrasyonu)',
+                          style: headingStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Kişisel ve sağlık verileriniz, yalnızca sizin '
+                          '(Veli) oluşturduğunuz davet kodunu kullanarak '
+                          'hesabınızla eşleşen yetkili terapistiniz ile '
+                          'gelişim raporları ve dinamik kural yönetimi '
+                          'amacıyla paylaşılır. Verileriniz, uygulamanın '
+                          'çalışabilmesi için güvenli bulut sunucularında '
+                          '(Supabase) şifreli olarak muhafaza edilmektedir. '
+                          'Üçüncü taraf reklam veya pazarlama şirketleriyle '
+                          'hiçbir veri paylaşılmaz.',
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '4. Veri Güvenliği ve Saklama Süresi',
+                          style: headingStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'İşlenen veriler, asistanlık hizmetinin devamı '
+                          'süresince saklanır. Ayarlar menüsünden '
+                          '"Verileri Sıfırla" veya "Hesabı Sil" seçenekleri '
+                          'kullanıldığında, KVKK madde 7 uyarınca tüm '
+                          'profil, kural ve eşleşme verileriniz '
+                          'sistemlerimizden kalıcı olarak ve '
+                          'anonimleştirilemeyecek şekilde silinir.',
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '5. KVKK Madde 11 Kapsamındaki Haklarınız',
+                          style: headingStyle,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Kullanıcılar; verilerinin işlenip işlenmediğini '
+                          'öğrenme, amacına uygun kullanılıp '
+                          'kullanılmadığını bilme, eksik/yanlış verileri '
+                          'düzeltme (Profil ekranından), verilerin '
+                          'silinmesini talep etme (Ayarlar ekranından) ve '
+                          'verilerini dışa aktarma (JSON formatında) '
+                          'haklarına sahiptir.',
+                          style: bodyStyle,
                         ),
                       ],
                     ),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: LulunaColors.error),
-                    ),
-                  ],
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -164,6 +279,43 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  LulunaCard(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          value: _accepted,
+                          onChanged: (v) =>
+                              setState(() => _accepted = v ?? false),
+                          activeColor: LulunaColors.primaryContainer,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 8),
+                            child: Text(
+                              'Aydınlatma Metni\'ni okudum. Luluna\'nın bana '
+                              've çocuğuma ait kişisel verileri ile sağlık '
+                              've biyometrik verileri (kriz anı ses '
+                              'analizleri, tetikleyici bilgileri) hizmetin '
+                              'sağlanması amacıyla işlemesine, saklamasına '
+                              've eşleştiğim terapist ile paylaşmasına açık '
+                              'rıza gösteriyorum.',
+                              style: textTheme.bodyMedium,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: LulunaColors.error),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -171,7 +323,12 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: BoxDecoration(
-                color: LulunaColors.surface.withValues(alpha: 0.9),
+                color: LulunaColors.surface.withValues(alpha: 0.95),
+                border: Border(
+                  top: BorderSide(
+                    color: LulunaColors.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
               ),
               child: FilledButton(
                 onPressed: canSubmit ? _continue : (_busy ? null : _continue),
@@ -201,49 +358,6 @@ class _KvkkConsentScreenState extends ConsumerState<KvkkConsentScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showNotice(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Aydınlatma Metni (özet)',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Luluna, otizm spektrumundaki çocuklara destek olmak için '
-                'giyilebilir kamera/mikrofon verilerini ve uygulama içi '
-                'etkileşim kayıtlarını işler. Veriler; kriz müdahalesi, '
-                'veli bilgilendirme ve (eşleştirme sonrası) terapist '
-                'raporlaması amacıyla kullanılır.\n\n'
-                'Kayıtlar mümkün olduğunca cihazda ve şifreli kanallarda '
-                'tutulur. Üçüncü taraflara (yapay zeka API) yalnızca '
-                'gerekli gözlem metinleri gönderilir. Haklarınız: '
-                'erişim, düzeltme, silme ve rızayı geri çekme.\n\n'
-                'Bu metin yasal danışman onaylı nihai metinle '
-                'değiştirilecektir.',
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Tamam'),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
