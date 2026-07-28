@@ -220,8 +220,8 @@ kullanıcıları çağırabilir. `GEMINI_API_KEY` artık Flutter
 
 - [x] `google_sign_in` + Supabase `signInWithIdToken` (native hesap seçici)
 - [x] `GOOGLE_WEB_CLIENT_ID` (zorunlu) / `GOOGLE_IOS_CLIENT_ID` (iOS)
-- [x] Giriş ekranında Google butonu Supabase varken release’de de görünür
-- [x] Yerel (Supabase’siz) modda Google yalnızca debug demo
+- [x] Giriş ekranında resmi “Google ile devam et” butonu (Supabase varken)
+- [x] Demo / stub Google girişi UI’dan kaldırıldı
 
 Kurulum (bir kez):
 
@@ -237,6 +237,8 @@ Kurulum (bir kez):
    `"GOOGLE_WEB_CLIENT_ID": "….apps.googleusercontent.com"`
 4. Uygulamayı yeniden çalıştır:
    `flutter run --dart-define-from-file=config/gemini.json`
+
+Mağazaya göndermeden önce: release keystore SHA-1’i Android OAuth’a ekleyin; Gizlilik Politikası URL’si canlı olsun; Play/App Store ekran görüntüleri ve imzalama hazır olsun.
 
 ### Test hesapları (demo)
 

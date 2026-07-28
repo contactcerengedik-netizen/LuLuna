@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../app/widgets/google_sign_in_button.dart';
 import '../../app/widgets/luluna_ui.dart';
-import '../../core/env.dart';
 import '../../core/test_accounts.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -199,39 +199,28 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       }
                     },
                   ),
-                  if (Env.hasSupabase || kDebugMode) ...[
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'veya',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: LulunaColors.outlineVariant,
-                              letterSpacing: 1.2,
-                            ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'veya',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: LulunaColors.outlineVariant,
+                            letterSpacing: 1.2,
                           ),
                         ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton.icon(
-                      onPressed: _busy ? null : _google,
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: Text(
-                        Env.hasSupabase
-                            ? (isRegister
-                                ? 'Google ile kayıt ol'
-                                : 'Google ile giriş')
-                            : (isRegister
-                                ? 'Google ile kayıt ol (demo)'
-                                : 'Google ile giriş (demo)'),
                       ),
-                    ),
-                  ],
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  GoogleSignInButton(
+                    enabled: !_busy,
+                    onPressed: _google,
+                  ),
                   if (kDebugMode) ...[
                     const SizedBox(height: 24),
                     const Divider(),
