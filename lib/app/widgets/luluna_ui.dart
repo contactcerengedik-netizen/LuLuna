@@ -185,14 +185,15 @@ class LulunaSettingsGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: LulunaColors.surfaceContainerLowest,
+    return Material(
+      color: LulunaColors.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
+        side: BorderSide(
           color: LulunaColors.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           for (var i = 0; i < children.length; i++) ...[

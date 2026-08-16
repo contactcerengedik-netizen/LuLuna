@@ -1,10 +1,7 @@
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Sistem izinlerini (mikrofon, bildirim, Bluetooth) yönetir.
-///
-/// İzin karşılama ekranının görüldüğü bilgisi kullanıcıya göre ayrılır;
-/// OS izinleri cihaz geneli kalır.
+/// Temel uygulama izinleri (sesli yönerge, bildirim).
 class PermissionsService {
   PermissionsService(this._prefs, {this.userId});
 
@@ -24,7 +21,6 @@ class PermissionsService {
     return PermissionSnapshot(
       microphone: await Permission.microphone.status,
       notification: await Permission.notification.status,
-      bluetooth: await Permission.bluetoothConnect.status,
     );
   }
 
@@ -32,7 +28,6 @@ class PermissionsService {
     await [
       Permission.microphone,
       Permission.notification,
-      Permission.bluetoothConnect,
     ].request();
     await markIntroSeen();
     return current();
@@ -43,15 +38,10 @@ class PermissionSnapshot {
   const PermissionSnapshot({
     required this.microphone,
     required this.notification,
-    required this.bluetooth,
   });
 
   final PermissionStatus microphone;
   final PermissionStatus notification;
-  final PermissionStatus bluetooth;
 
-  bool get allGranted =>
-      microphone.isGranted &&
-      notification.isGranted &&
-      bluetooth.isGranted;
+  bool get allGranted => microphone.isGranted && notification.isGranted;
 }

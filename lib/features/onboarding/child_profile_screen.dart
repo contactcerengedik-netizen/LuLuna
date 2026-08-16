@@ -6,9 +6,7 @@ import '../../app/navigation.dart';
 import '../../app/theme.dart';
 import '../../app/widgets/luluna_ui.dart';
 import '../../data/models/child_profile.dart';
-import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
-import 'parent_voice_recorder_card.dart';
 
 class ChildProfileScreen extends ConsumerStatefulWidget {
   const ChildProfileScreen({super.key});
@@ -52,12 +50,11 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
     await ref.read(appStateProvider.notifier).saveProfile(profile);
     if (!mounted) return;
 
-    // Ayarlardan gelindiyse stack'e geri dön; onboarding ise ana ekran.
     if (context.canPop()) {
-      lulunaGoBack(context);
+      lulunaGoBack(context, fallbackLocation: '/student');
       return;
     }
-    context.go('/home');
+    context.go('/student');
   }
 
   @override
@@ -72,14 +69,13 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
         fallbackLocation: '/onboarding/role',
         onBack: () async {
           final hasProfile = ref.read(appStateProvider).profile != null;
-          // Sadece onboarding'de (profil yokken) rolü sıfırla.
           if (!hasProfile) {
             await ref.read(appStateProvider.notifier).clearRole();
           }
           if (context.mounted) {
             lulunaGoBack(
               context,
-              fallbackLocation: hasProfile ? '/home' : '/onboarding/role',
+              fallbackLocation: hasProfile ? '/student' : '/onboarding/role',
             );
           }
         },
@@ -91,8 +87,7 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               Text(
-                'Bu bilgiler yapay zekanın system prompt\'una otomatik '
-                'eklenir ve yönlendirmeler buna göre kişiselleşir.',
+                'Bu bilgiler öğrenciyi tanımak ve yönergeleri kişiselleştirmek için kullanılır.',
                 textAlign: TextAlign.center,
                 style: textTheme.labelMedium?.copyWith(
                   color: LulunaColors.onSurfaceVariant.withValues(alpha: 0.8),
@@ -113,7 +108,7 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
               const SizedBox(height: 24),
               LulunaCard(
                 child: _ChipListEditor(
-                  title: 'Fobiler ve tetikleyiciler',
+                  title: 'Dikkat edilecek durumlar',
                   hint: 'Yeni ekle...',
                   items: _triggers,
                   onChanged: (items) => setState(() => _triggers = items),
@@ -122,7 +117,7 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
               const SizedBox(height: 24),
               LulunaCard(
                 child: _ChipListEditor(
-                  title: 'Onu sakinleştiren şeyler',
+                  title: 'Motive eden / sakinleştiren şeyler',
                   hint: 'Yeni ekle...',
                   items: _calmingItems,
                   onChanged: (items) => setState(() => _calmingItems = items),
@@ -134,7 +129,7 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Asistanın ses tonu',
+                      'Sesli yönerge tonu',
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -151,10 +146,6 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
                   ],
                 ),
               ),
-              if (ref.watch(appStateProvider).role == UserRole.parent) ...[
-                const SizedBox(height: 24),
-                const ParentVoiceRecorderCard(),
-              ],
               const SizedBox(height: 32),
               LulunaPrimaryButton(
                 label: 'Kaydet ve Başla',
@@ -169,7 +160,6 @@ class _ChildProfileScreenState extends ConsumerState<ChildProfileScreen> {
   }
 }
 
-/// Metin girip "+" ile chip listesine ekleme yapılan basit editör.
 class _ChipListEditor extends StatefulWidget {
   const _ChipListEditor({
     required this.title,

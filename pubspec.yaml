@@ -1,5 +1,5 @@
 name: luluna
-description: "Luluna — AI destekli giyilebilir asistan (otizm spektrumu)"
+description: "LuLuna — özel eğitim destekli öğrenme platformu (öğrenci / öğretmen)"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -54,6 +54,9 @@ dependencies:
   google_fonts: ^8.2.0
   google_sign_in: ^7.2.0
   flutter_svg: ^2.2.0
+  camera: ^0.12.0+2
+  image: ^4.8.0
+  speech_to_text: ^7.4.0
 
 dev_dependencies:
   flutter_test:
@@ -79,8 +82,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/audio/
     - assets/icons/
+    - assets/scenarios/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

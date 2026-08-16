@@ -1,22 +1,29 @@
-/// Test amaçlı sabit demo hesaplar (geliştirme / manuel QA).
+/// Test / demo hesaplar.
 class TestAccounts {
   const TestAccounts._();
 
+  static const student = TestAccount(
+    email: 'student@demo.com',
+    password: 'demo1234',
+    displayName: 'Demo Öğrenci',
+    roleHint: 'student',
+  );
+
+  static const teacher = TestAccount(
+    email: 'teacher@demo.com',
+    password: 'demo1234',
+    displayName: 'Demo Öğretmen',
+    roleHint: 'teacher',
+  );
+
   static const parent = TestAccount(
-    email: 'veli@luluna.app',
-    password: 'veli12',
+    email: 'veli@demo.com',
+    password: 'demo1234',
     displayName: 'Demo Veli',
-    roleHint: 'veli',
+    roleHint: 'parent',
   );
 
-  static const therapist = TestAccount(
-    email: 'terapi@luluna.app',
-    password: 'terapi',
-    displayName: 'Demo Terapist',
-    roleHint: 'terapist',
-  );
-
-  static const all = [parent, therapist];
+  static const all = [student, teacher, parent];
 }
 
 class TestAccount {

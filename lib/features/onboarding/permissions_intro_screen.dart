@@ -8,7 +8,7 @@ import '../../app/theme.dart';
 import '../../app/widgets/luluna_ui.dart';
 import '../../data/providers.dart';
 
-/// Onboarding sonrası yumuşak izin karşılama ekranı.
+/// Onboarding — isteğe bağlı ses / bildirim izinleri.
 class PermissionsIntroScreen extends ConsumerStatefulWidget {
   const PermissionsIntroScreen({super.key});
 
@@ -31,17 +31,13 @@ class _PermissionsIntroScreenState
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _status = [
+      final granted = [
         if (snap.microphone.isGranted) 'Mikrofon',
         if (snap.notification.isGranted) 'Bildirim',
-        if (snap.bluetooth.isGranted) 'Bluetooth',
-      ].isEmpty
-          ? 'İzinler verilmedi; Ayarlar’dan sonra açabilirsiniz.'
-          : 'Verildi: ${[
-              if (snap.microphone.isGranted) 'Mikrofon',
-              if (snap.notification.isGranted) 'Bildirim',
-              if (snap.bluetooth.isGranted) 'Bluetooth',
-            ].join(', ')}';
+      ];
+      _status = granted.isEmpty
+          ? 'İzin verilmedi; Ayarlar’dan sonra açabilirsiniz.'
+          : 'Verildi: ${granted.join(', ')}';
     });
     await Future<void>.delayed(const Duration(milliseconds: 400));
     if (mounted) _continueFlow();
@@ -53,7 +49,6 @@ class _PermissionsIntroScreenState
   }
 
   void _continueFlow() {
-    // Router: rol/profil/eşleşme durumuna göre doğru yere yönlendirir.
     context.go('/onboarding/role');
   }
 
@@ -65,7 +60,7 @@ class _PermissionsIntroScreenState
       backgroundColor: LulunaColors.surface,
       appBar: lulunaAppBar(
         context,
-        title: 'Cihaz İzinleri',
+        title: 'İzinler',
         fallbackLocation: '/auth',
         onBack: () async {
           await ref.read(authStateProvider.notifier).signOut();
@@ -87,7 +82,7 @@ class _PermissionsIntroScreenState
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Icon(
-                        Icons.shield,
+                        Icons.shield_outlined,
                         size: 64,
                         color: LulunaColors.primaryContainer,
                       ),
@@ -95,16 +90,14 @@ class _PermissionsIntroScreenState
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Luluna’nın çalışması için',
+                    'Daha iyi bir deneyim için',
                     textAlign: TextAlign.center,
                     style: textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Bluetooth (kemik iletimli ses), bildirimler (arka plan '
-                    'izleme) ve mikrofon (veli kriz kaydı) izinlerine '
-                    'ihtiyacımız var. Bunları şimdi açıklayıcı şekilde '
-                    'isteyeceğiz.',
+                    'Sesli yönerge ve hatırlatmalar için isteğe bağlı izinler. '
+                    'Şimdilik geçebilirsiniz.',
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(
                       color: LulunaColors.onSurfaceVariant,
@@ -112,21 +105,15 @@ class _PermissionsIntroScreenState
                   ),
                   const SizedBox(height: 32),
                   const _PermRow(
-                    icon: Icons.mic,
-                    title: 'Mikrofon',
-                    subtitle: 'Kriz anı için veli ses kaydı',
+                    icon: Icons.volume_up_outlined,
+                    title: 'Mikrofon / ses',
+                    subtitle: 'Sesli yönergeler (isteğe bağlı)',
                   ),
                   const SizedBox(height: 16),
                   const _PermRow(
-                    icon: Icons.notifications,
+                    icon: Icons.notifications_outlined,
                     title: 'Bildirimler',
-                    subtitle: 'Ön plan servisi ve durum uyarıları',
-                  ),
-                  const SizedBox(height: 16),
-                  const _PermRow(
-                    icon: Icons.bluetooth,
-                    title: 'Bluetooth',
-                    subtitle: 'Gözlük / kemik iletimli kulaklık',
+                    subtitle: 'Çalışma hatırlatmaları (isteğe bağlı)',
                   ),
                   if (_status != null) ...[
                     const SizedBox(height: 16),
@@ -136,17 +123,6 @@ class _PermissionsIntroScreenState
                       style: textTheme.bodySmall,
                     ),
                   ],
-                  const SizedBox(height: 32),
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: LulunaColors.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -216,10 +192,6 @@ class _PermRow extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            color: LulunaColors.primary.withValues(alpha: 0.3),
           ),
         ],
       ),

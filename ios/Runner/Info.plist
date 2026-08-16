@@ -45,8 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Konuşma egzersizlerinde söylediklerini anlamak için konuşma tanıma kullanılır. Ham ses varsayılan olarak saklanmaz.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kamera, çevrendeki nesneleri keşfetmene yardımcı olmak için kullanılır. Görüntüler varsayılan olarak saklanmaz.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kriz anında veli ses kaydı ve asistan desteği için mikrofon kullanılır.</string>
+	<string>Mikrofon, konuşma egzersizlerinde sesli cevap vermen ve kriz anında veli ses kaydı için kullanılır.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Kemik iletimli kulaklık ve giyilebilir cihaz bağlantısı için Bluetooth gerekir.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

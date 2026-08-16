@@ -1,0 +1,62 @@
+{
+  "scenario": "restaurant",
+  "title": "Restoran",
+  "description": "Sipariş ver, doğru parayı öde, teşekkür et",
+  "difficulty": "easy",
+  "npcRole": "Garson",
+  "steps": [
+    {
+      "id": "greet",
+      "type": "npcSpeak",
+      "speaker": "Garson",
+      "text": "Merhaba, ne sipariş etmek istersiniz?"
+    },
+    {
+      "id": "order",
+      "type": "studentChoice",
+      "text": "Ne istersin?",
+      "choices": [
+        { "id": "pizza", "label": "Pizza istiyorum.", "correct": true },
+        { "id": "quiet", "label": "...", "correct": false },
+        { "id": "leave", "label": "Gidiyorum.", "correct": false }
+      ]
+    },
+    {
+      "id": "price",
+      "type": "npcSpeak",
+      "speaker": "Garson",
+      "text": "Pizzanız 50 TL."
+    },
+    {
+      "id": "pay",
+      "type": "paymentChoice",
+      "text": "Doğru parayı seç.",
+      "choices": [
+        { "id": "20", "label": "20 TL", "correct": false },
+        { "id": "50", "label": "50 TL", "correct": true },
+        { "id": "100", "label": "100 TL", "correct": false }
+      ]
+    },
+    {
+      "id": "thanks_npc",
+      "type": "npcSpeak",
+      "speaker": "Garson",
+      "text": "Teşekkür ederim."
+    },
+    {
+      "id": "thanks_student",
+      "type": "studentChoice",
+      "text": "Ne dersin?",
+      "choices": [
+        { "id": "thanks", "label": "Teşekkür ederim.", "correct": true },
+        { "id": "bye_rude", "label": "Hadi bakayım.", "correct": false }
+      ]
+    },
+    {
+      "id": "done",
+      "type": "complete",
+      "speaker": "Garson",
+      "text": "Afiyet olsun! Senaryo tamam."
+    }
+  ]
+}

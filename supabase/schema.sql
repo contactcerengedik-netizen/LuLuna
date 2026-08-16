@@ -14,10 +14,16 @@ create table if not exists public.profiles (
   id           uuid primary key references auth.users(id) on delete cascade,
   email        text,
   display_name text,
-  role         text check (role in ('parent', 'therapist')),
+  role         text check (role in ('learner', 'parent', 'therapist')),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- Mevcut kurulumlar için (CREATE TABLE IF NOT EXISTS CHECK'i güncellemez):
+-- alter table public.profiles drop constraint if exists profiles_role_check;
+-- alter table public.profiles
+--   add constraint profiles_role_check
+--   check (role in ('learner', 'parent', 'therapist'));
 
 alter table public.profiles enable row level security;
 
@@ -265,3 +271,10 @@ create policy "rules_therapist_update" on public.therapist_rules
         and pc.claimed_by = auth.uid()
     )
   );
+
+-- ------------------------------------------------------------
+-- Eğitim platformu (PHASE 8)
+-- Uygulama: migrations/004_education_roles.sql
+--           migrations/005_education_schema_draft.sql
+--           migrations/006_education_backend.sql
+-- ------------------------------------------------------------

@@ -1,7 +1,10 @@
-/// Derleme zamanı yapılandırması.
+/// Derleme / runtime yapılandırması.
 ///
-/// Çalıştırma örneği:
-/// flutter run --dart-define-from-file=config/gemini.json
+/// Anahtarlar:
+/// - `flutter run --dart-define-from-file=config/gemini.json`
+/// - Şablon: `.env.example` (dosyayı commit etme; değerleri dart-define ile geçir)
+///
+/// API anahtarları source code'a yazılmaz. Supabase yoksa Demo Mode çalışır.
 abstract final class Env {
   /// Yalnızca Supabase'siz debug geliştirme için doğrudan Gemini anahtarı.
   /// Release derlemesinde anahtar Edge Function secret'ında tutulmalıdır.
@@ -52,7 +55,17 @@ abstract final class Env {
     'GOOGLE_IOS_CLIENT_ID',
   );
 
+  /// Opsiyonel görsel üretim API anahtarı (PHASE 6+).
+  static const imageApiKey = String.fromEnvironment('IMAGE_API_KEY');
+
+  /// Opsiyonel OpenAI anahtarı (içerik LLM; mock yoksa).
+  static const openAiApiKey = String.fromEnvironment('OPENAI_API_KEY');
+
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
+
+  static bool get hasImageApiKey => imageApiKey.isNotEmpty;
+
+  static bool get hasOpenAiKey => openAiApiKey.isNotEmpty;
 
   static bool get hasSyncEndpoint => syncEndpoint.isNotEmpty;
 

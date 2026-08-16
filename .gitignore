@@ -47,3 +47,6 @@ app.*.map.json
 # Gizli anahtarlar — asla commit edilmez (dart-define-from-file ile okunur)
 /config/gemini.json
 /config/*.local.json
+.env
+.env.local
+.env.*.local

@@ -70,7 +70,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
           ),
         );
       } else {
-        context.go('/home');
+        // Redirect: KVKK → izinler → rol → öğrenci/öğretmen.
+        context.go('/onboarding/consent');
       }
     } on AuthException catch (e) {
       setState(() => _error = e.message);
@@ -124,9 +125,11 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              isRegister ? 'Yeni hesap oluştur' : 'Hoş geldiniz',
+              isRegister
+                  ? 'Yeni hesap oluştur'
+                  : 'Özel eğitim platformuna hoş geldiniz',
               textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
+              style: textTheme.bodyLarge?.copyWith(
                 color: LulunaColors.onSurfaceVariant,
               ),
             ),
@@ -173,8 +176,8 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                   if (isRegister) ...[
                     const SizedBox(height: 12),
                     Text(
-                      'Kayıt sonrası giriş yapınca KVKK onayı ve cihaz '
-                      'izinleri istenir.',
+                      'Kayıt sonrası giriş yapınca KVKK onayı ve '
+                      'temel izinler istenir.',
                       style: textTheme.bodySmall?.copyWith(
                         color: LulunaColors.onSurfaceVariant,
                       ),
@@ -241,14 +244,12 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                         for (final account in TestAccounts.all)
                           ActionChip(
                             avatar: Icon(
-                              account.roleHint == 'veli'
-                                  ? Icons.family_restroom
-                                  : Icons.psychology,
+                              _demoIcon(account.roleHint),
                               size: 18,
                               color: LulunaColors.onSecondaryContainer,
                             ),
                             label: Text(
-                              account.roleHint == 'veli' ? 'Veli' : 'Terapist',
+                              _demoLabel(account.roleHint),
                               style: const TextStyle(
                                 color: LulunaColors.onSecondaryContainer,
                                 fontWeight: FontWeight.w600,
@@ -267,7 +268,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
             ),
             const SizedBox(height: 32),
             Text(
-              '© 2024 Luluna AI Health Assistant',
+              '© LuLuna Eğitim',
               textAlign: TextAlign.center,
               style: textTheme.labelSmall?.copyWith(
                 color: LulunaColors.outline,
@@ -278,6 +279,24 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
       ),
     );
   }
+}
+
+IconData _demoIcon(String roleHint) {
+  return switch (roleHint) {
+    'student' => Icons.school_outlined,
+    'teacher' => Icons.badge_outlined,
+    'parent' => Icons.family_restroom,
+    _ => Icons.person_outline,
+  };
+}
+
+String _demoLabel(String roleHint) {
+  return switch (roleHint) {
+    'student' => 'Öğrenci',
+    'teacher' => 'Öğretmen',
+    'parent' => 'Veli',
+    _ => roleHint,
+  };
 }
 
 class _AuthFields extends StatelessWidget {
