@@ -11,6 +11,9 @@ abstract class EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   });
 
   /// Öğretmen onaylı skill_key seviyesi (bulutta upsert; demo no-op).

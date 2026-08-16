@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../app/navigation.dart';
 import '../../app/theme.dart';
 import '../../app/widgets/luluna_ui.dart';
+import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
 
 /// Onboarding — isteğe bağlı ses / bildirim izinleri.
@@ -27,29 +28,54 @@ class _PermissionsIntroScreenState
       _busy = true;
       _status = null;
     });
-    final snap = await ref.read(permissionsServiceProvider).requestAll();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
+    try {
+      final snap = await ref.read(permissionsServiceProvider).requestAll();
+      if (!mounted) return;
       final granted = [
         if (snap.microphone.isGranted) 'Mikrofon',
         if (snap.notification.isGranted) 'Bildirim',
       ];
-      _status = granted.isEmpty
-          ? 'İzin verilmedi; Ayarlar’dan sonra açabilirsiniz.'
-          : 'Verildi: ${granted.join(', ')}';
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+      setState(() {
+        _status = granted.isEmpty
+            ? 'İzin verilmedi; Ayarlar’dan sonra açabilirsiniz. Devam ediliyor…'
+            : 'Verildi: ${granted.join(', ')}';
+      });
+    } catch (_) {
+      // Servis zaten yutar; yine de güvenli tarafta kal.
+      await ref.read(permissionsServiceProvider).markIntroSeen();
+      if (!mounted) return;
+      setState(() {
+        _status =
+            'İzinler alınamadı; şimdilik geçiliyor. İstediğiniz zaman '
+            'Ayarlar’dan açabilirsiniz.';
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (mounted) _continueFlow();
   }
 
   Future<void> _skip() async {
-    await ref.read(permissionsServiceProvider).markIntroSeen();
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await ref.read(permissionsServiceProvider).markIntroSeen();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
     if (mounted) _continueFlow();
   }
 
+  /// Rol seçim ekranına gitme — o ekran oturumu kapatır.
+  /// Rol zaten auth’ta atanır; ana ekrana yönlendir.
   void _continueFlow() {
-    context.go('/onboarding/role');
+    final role = ref.read(appStateProvider).role;
+    if (role == UserRole.teacher || role == UserRole.admin) {
+      context.go('/teacher');
+    } else {
+      context.go('/student');
+    }
   }
 
   @override

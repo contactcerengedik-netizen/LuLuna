@@ -28,7 +28,7 @@ void main() {
     await auth.updateKvkk(_kvkk);
   }
 
-  testWidgets('ilk açılışta giriş ekranı gösterilir', (tester) async {
+  testWidgets('ilk açılışta giriş yolu seçimi gösterilir', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
 
@@ -37,8 +37,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Özel eğitim platformuna hoş geldiniz'), findsOneWidget);
-    expect(find.text('Giriş Yap'), findsOneWidget);
+    expect(find.text('Veli / Çocuk Girişi'), findsOneWidget);
+    expect(find.text('Öğretmen Girişi'), findsOneWidget);
   });
 
   testWidgets('giriş sonrası KVKK onayı ekranı açılır', (tester) async {

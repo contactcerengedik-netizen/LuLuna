@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../app/widgets/education_ui.dart';
+import '../data/routine_sequence_catalog.dart';
 import '../data/scenario_catalog.dart';
 
 class DailyLifeHubScreen extends StatelessWidget {
@@ -10,6 +11,7 @@ class DailyLifeHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final routines = RoutineSequenceCatalog.all;
     return Scaffold(
       backgroundColor: LulunaColors.surface,
       appBar: AppBar(
@@ -23,19 +25,31 @@ class DailyLifeHubScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Rutin & iletişim',
+            'Rutin Sıralama',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
           ),
-          const SizedBox(height: 12),
-          EducationBigTile(
-            title: 'Sabah rutini',
-            subtitle: 'First–Then + görsel zamanlayıcı',
-            leading: const EducationModuleIcon(icon: Icons.wb_sunny_outlined),
-            onTap: () => context.push('/student/daily-life/routine'),
+          const SizedBox(height: 4),
+          Text(
+            'Adımları sürükleyerek doğru sıraya koy',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: LulunaColors.onSurfaceVariant,
+                ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          for (final r in routines) ...[
+            EducationBigTile(
+              title: r.title,
+              subtitle: '${r.steps.length} adım · sürükle-bırak',
+              leading: const EducationModuleIcon(icon: Icons.reorder),
+              onTap: () => context.push(
+                '/student/daily-life/routine?id=${r.id}',
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 12),
           EducationBigTile(
             title: 'AAC panosu',
             subtitle: 'Dokun → ses; sık kullanılan önde',

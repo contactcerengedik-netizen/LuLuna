@@ -117,6 +117,7 @@ abstract class QuestionGenerator {
   List<EducationQuestion> generate({
     required String category,
     required SkillTier difficulty,
-    int count = 5,
+    int count = 10,
+    List<String> excludeIds = const [],
   });
 }

@@ -1,9 +1,17 @@
+import '../../../data/models/skill_level.dart';
 import 'ai_content_models.dart';
 import 'question_image_spec.dart';
 
 /// LLM içerik servisi — API anahtarı yoksa mock kullanılır.
 abstract class AiContentService {
   Future<StructuredActivity> parseTeacherPrompt(String prompt);
+
+  /// Faz 19: kapalı skill_key listesi + confidence.
+  Future<TeacherAiParseResult> parseTeacherQuestion({
+    required String prompt,
+    required List<String> validSkillKeys,
+    SkillTier? suggestedDifficulty,
+  });
 }
 
 /// Görsel üretimi — provider değiştirilebilir.

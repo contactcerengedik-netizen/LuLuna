@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../domain/puzzle_image_splitter.dart';
-
 /// Tek bir “görsel” — parçalara bölünür (programatik sahne; asset gerekmez).
 class PuzzleScenePainter extends CustomPainter {
   PuzzleScenePainter({this.clip});
@@ -14,10 +12,15 @@ class PuzzleScenePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (clip != null) {
-      final px = PuzzleImageSplitter.toSourcePixels(clip!, size);
+      // Parça boyutuna göre tam sahneyi ölçekle; clip bölgesini parçaya sığdır (gerdirme yok).
       canvas.save();
-      canvas.clipRect(px);
-      _paintScene(canvas, size);
+      canvas.clipRect(Offset.zero & size);
+      final full = Size(
+        size.width / clip!.width,
+        size.height / clip!.height,
+      );
+      canvas.translate(-clip!.left * full.width, -clip!.top * full.height);
+      _paintScene(canvas, full);
       canvas.restore();
     } else {
       _paintScene(canvas, size);

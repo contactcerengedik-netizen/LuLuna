@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ import '../../../data/models/skill_level.dart';
 import '../../../data/providers.dart';
 import '../domain/activity_models.dart';
 import 'activity_session_controller.dart';
+import 'widgets/education_question_visual.dart';
 import 'widgets/question_player.dart';
 
 class ActivitySessionScreen extends ConsumerStatefulWidget {
@@ -19,7 +22,7 @@ class ActivitySessionScreen extends ConsumerStatefulWidget {
     required this.difficulty,
     required this.title,
     required this.exitRoute,
-    this.count = 5,
+    this.count = 10,
     this.assignmentId,
   });
 
@@ -43,41 +46,73 @@ class _ActivitySessionScreenState extends ConsumerState<ActivitySessionScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(activitySessionProvider.notifier).start(
-            ActivityLaunchArgs(
-              skill: widget.skill,
-              category: widget.category,
-              difficulty: widget.difficulty,
-              count: widget.count,
-              assignmentId: widget.assignmentId,
+      unawaited(
+        ref.read(activitySessionProvider.notifier).start(
+              ActivityLaunchArgs(
+                skill: widget.skill,
+                category: widget.category,
+                difficulty: widget.difficulty,
+                count: widget.count,
+                assignmentId: widget.assignmentId,
+              ),
             ),
-          );
+      );
     });
   }
 
   Future<void> _onAnswer(String answer) async {
     if (_busy) return;
     setState(() => _busy = true);
+    final asked = ref.read(activitySessionProvider)?.current;
     final eval =
         await ref.read(activitySessionProvider.notifier).submit(answer);
     if (!mounted) return;
     setState(() => _busy = false);
-    if (eval == null) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          eval.correct
-              ? 'Tebrikler! ${eval.explanation ?? ''}'.trim()
-              : 'Tekrar deneyelim. ${eval.explanation ?? ''}'.trim(),
-        ),
-        backgroundColor:
-            eval.correct ? LulunaColors.secondary : LulunaColors.error,
-        duration: Duration(milliseconds: eval.correct ? 900 : 1400),
-      ),
+    if (eval == null || asked == null) return;
+
+    // Doğru cevapta panel açma — doğrudan sonraki soruya geç.
+    if (eval.correct) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Tekrar bakalım',
+                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: LulunaColors.error,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              EducationQuestionVisual(
+                question: asked,
+                mode: EducationVisualMode.solution,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                eval.explanation ?? 'Doğru cevap: ${asked.correctAnswer}',
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Tekrar dene'),
+              ),
+            ],
+          ),
+        );
+      },
     );
-    if (!eval.correct) {
+
+    if (mounted) {
       ref.read(activitySessionProvider.notifier).clearFeedback();
     }
   }
@@ -103,8 +138,25 @@ class _ActivitySessionScreenState extends ConsumerState<ActivitySessionScreen> {
             },
           ),
         ),
-        body: session == null
-            ? const Center(child: CircularProgressIndicator())
+        body: session == null || session.preparing || !session.isReady
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        session?.preparingMessage ??
+                            'Sorular ve görseller hazırlanıyor…',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              )
             : session.finished && session.result != null
                 ? _ResultBody(
                     result: session.result!,
@@ -114,13 +166,17 @@ class _ActivitySessionScreenState extends ConsumerState<ActivitySessionScreen> {
                       context.go(widget.exitRoute);
                     },
                     onRetry: () {
-                      ref.read(activitySessionProvider.notifier).start(
-                            ActivityLaunchArgs(
-                              skill: widget.skill,
-                              category: widget.category,
-                              difficulty: widget.difficulty,
+                      unawaited(
+                        ref.read(activitySessionProvider.notifier).start(
+                              ActivityLaunchArgs(
+                                skill: widget.skill,
+                                category: widget.category,
+                                difficulty: widget.difficulty,
+                                count: widget.count,
+                                assignmentId: widget.assignmentId,
+                              ),
                             ),
-                          );
+                      );
                     },
                   )
                 : SafeArea(

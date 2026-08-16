@@ -187,12 +187,13 @@ class MemoryEngine {
 
   MemoryCardFace? get flashTarget => _flashTarget;
 
-  /// Seçenekler: hedef + çeldiriciler.
+  /// Seçenekler: hedef (gösterilenlerden) + yalnızca gösterilmeyen çeldiriciler.
   List<MemoryCardFace> flashChoices({int choiceCount = 4}) {
     final target = _flashTarget;
     if (target == null) return const [];
+    final shownIds = _flashShown.map((f) => f.pairId).toSet();
     final distractors = _defaultPool()
-        .where((f) => f.pairId != target.pairId)
+        .where((f) => !shownIds.contains(f.pairId))
         .toList()
       ..shuffle(_rng);
     final list = <MemoryCardFace>[target, ...distractors.take(choiceCount - 1)];
@@ -204,7 +205,8 @@ class MemoryEngine {
     final askAt = _flashAskAt ?? DateTime.now();
     final reaction = DateTime.now().difference(askAt).inMilliseconds;
     _reactionSamples.add(reaction);
-    final ok = pairId == _flashTarget?.pairId;
+    // Doğru = gösterilen set ile aynı referans (target set üyesi).
+    final ok = _flashShown.any((f) => f.pairId == pairId);
     if (ok) {
       correctCount++;
     } else {

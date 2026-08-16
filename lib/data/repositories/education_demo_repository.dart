@@ -1,3 +1,6 @@
+import '../../features/education/domain/question_selection.dart';
+import '../../features/language/data/language_question_generator.dart';
+import '../../features/mathematics/data/math_question_generator.dart';
 import '../models/education_question.dart';
 import '../models/skill_level.dart';
 import '../models/student_profile.dart';
@@ -81,49 +84,33 @@ class InMemoryEducationRepository implements EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   }) async {
+    final cat = category ??
+        (skill == SkillArea.language ? 'antonyms' : 'addition');
     if (skill == SkillArea.mathematics) {
-      return [
-        EducationQuestion(
-          id: 'math-add-1',
-          category: 'addition',
-          skill: SkillArea.mathematics,
-          difficulty: difficulty,
-          instruction: 'Toplamı bul.',
-          questionText: '3 + 5 = ?',
-          choices: const ['6', '7', '8', '9'],
-          correctAnswer: '8',
-          explanation: '3 ile 5 toplanınca 8 olur.',
-        ),
-        EducationQuestion(
-          id: 'math-sub-1',
-          category: 'subtraction',
-          skill: SkillArea.mathematics,
-          difficulty: difficulty,
-          instruction: 'Farkı bul.',
-          questionText: '9 - 4 = ?',
-          choices: const ['3', '4', '5', '6'],
-          correctAnswer: '5',
-          explanation: '9 eksi 4 eşittir 5.',
-        ),
-      ];
+      return MathQuestionGenerator().generate(
+        category: cat,
+        difficulty: difficulty,
+        count: count,
+        excludeIds: excludeIds,
+      );
     }
     if (skill == SkillArea.language) {
-      return [
-        EducationQuestion(
-          id: 'lang-antonym-1',
-          category: 'antonyms',
-          skill: SkillArea.language,
-          difficulty: difficulty,
-          instruction: 'Zıt kavramı seç.',
-          questionText: 'GECE',
-          choices: const ['Gündüz', 'Karanlık', 'Akşam'],
-          correctAnswer: 'Gündüz',
-          explanation: 'Gecenin zıttı gündüzdür.',
-        ),
-      ];
+      return LanguageQuestionGenerator().generate(
+        category: cat,
+        difficulty: difficulty,
+        count: count,
+        excludeIds: excludeIds,
+      );
     }
-    return const [];
+    return QuestionSelection.pickWithoutRecent(
+      pool: const [],
+      recentIds: excludeIds,
+      count: count,
+    );
   }
 
   @override
@@ -132,10 +119,8 @@ class InMemoryEducationRepository implements EducationRepository {
     required String skillKey,
     required SkillTier tier,
     SkillLevelSource source = SkillLevelSource.teacherSet,
-  }) async {
-    // Demo: bellek içi profil güncellemesi yok; yerel StudentSkillLevelRepository kullanır.
-  }
+  }) async {}
 }
 
-/// Eski sınıf adı.
+/// Eski test / import adı.
 typedef InMemoryEducationDemoRepository = InMemoryEducationRepository;

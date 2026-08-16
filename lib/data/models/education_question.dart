@@ -11,6 +11,7 @@ class EducationQuestion {
     required this.instruction,
     required this.questionText,
     this.imageUrl,
+    this.solutionImageUrl,
     this.audioUrl,
     this.choices = const [],
     required this.correctAnswer,
@@ -25,6 +26,9 @@ class EducationQuestion {
   final String instruction;
   final String questionText;
   final String? imageUrl;
+
+  /// Cevap sonrası görsel çözüm (mock:// veya asset/network).
+  final String? solutionImageUrl;
   final String? audioUrl;
   final List<String> choices;
   final String correctAnswer;
@@ -57,6 +61,7 @@ class EducationQuestion {
     'instruction': instruction,
     'questionText': questionText,
     'imageUrl': imageUrl,
+    'solutionImageUrl': solutionImageUrl,
     'audioUrl': audioUrl,
     'choices': choices,
     'correctAnswer': correctAnswer,
@@ -74,6 +79,7 @@ class EducationQuestion {
       instruction: map['instruction'] as String? ?? '',
       questionText: map['questionText'] as String? ?? '',
       imageUrl: map['imageUrl'] as String?,
+      solutionImageUrl: map['solutionImageUrl'] as String?,
       audioUrl: map['audioUrl'] as String?,
       choices: List<String>.from(map['choices'] as List? ?? const []),
       correctAnswer: map['correctAnswer'] as String? ?? '',

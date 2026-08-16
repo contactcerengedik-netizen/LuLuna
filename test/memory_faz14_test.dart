@@ -77,11 +77,34 @@ void main() {
       );
       engine.startFlash(pool: MemoryEngine.defaultPool(), count: 2);
       engine.endFlashReveal();
+      final shown = engine.flashShown.map((f) => f.pairId).toSet();
       final wrong = MemoryEngine.defaultPool()
-          .firstWhere((f) => f.pairId != engine.flashTarget!.pairId);
+          .firstWhere((f) => !shown.contains(f.pairId));
       final result = engine.answerFlash(wrong.pairId);
       expect(result.correct, isFalse);
       expect(engine.wrongCount, 1);
+    });
+
+    test('flash: doğru şık gösterilenlerle tutarlı; çeldirici gösterilmez', () {
+      for (var i = 0; i < 10; i++) {
+        final engine = MemoryEngine(
+          faces: MemoryEngine.defaultPool(),
+          pairCount: 3,
+          random: null,
+        );
+        engine.startFlash(pool: MemoryEngine.defaultPool(), count: 3);
+        engine.endFlashReveal();
+        final shown = engine.flashShown.map((f) => f.pairId).toSet();
+        expect(shown.contains(engine.flashTarget!.pairId), isTrue);
+        final choices = engine.flashChoices();
+        final choiceIds = choices.map((c) => c.pairId).toSet();
+        // Çeldiriciler gösterilenlerle kesişmemeli (hedef hariç).
+        for (final id in choiceIds) {
+          if (id == engine.flashTarget!.pairId) continue;
+          expect(shown.contains(id), isFalse);
+        }
+        expect(engine.answerFlash(engine.flashTarget!.pairId).correct, isTrue);
+      }
     });
   });
 }

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/env.dart';
+import '../core/test_accounts.dart';
 import 'models/auth_session.dart';
 import 'models/child_profile.dart';
 import 'models/student_profile.dart';
@@ -22,6 +23,51 @@ import 'services/speech_service.dart';
 final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('main() içinde override edilmeli'),
 );
+
+/// Auth öncesi giriş yolu — rol seçiminin yerine geçer.
+enum LoginPath { family, teacher }
+
+final loginPathProvider = NotifierProvider<LoginPathNotifier, LoginPath?>(
+  LoginPathNotifier.new,
+);
+
+class LoginPathNotifier extends Notifier<LoginPath?> {
+  @override
+  LoginPath? build() => null;
+
+  void setPath(LoginPath path) => state = path;
+
+  void clear() => state = null;
+}
+
+/// Demo e-posta → kanonik rol; bilinmeyen hesaplarda null.
+UserRole? accountRoleForEmail(String email) {
+  final e = email.trim().toLowerCase();
+  for (final a in TestAccounts.all) {
+    if (a.email == e) return UserRole.parse(a.roleHint);
+  }
+  return null;
+}
+
+bool roleMatchesLoginPath(UserRole role, LoginPath path) {
+  if (path == LoginPath.teacher) {
+    return role == UserRole.teacher || role == UserRole.admin;
+  }
+  return role == UserRole.student || role == UserRole.parent;
+}
+
+/// Giriş yolu + hesap e-postasına göre atanacak rol (uyumsuzsa null).
+UserRole? resolveRoleForLogin({
+  required String email,
+  required LoginPath path,
+}) {
+  final fromAccount = accountRoleForEmail(email);
+  if (fromAccount != null) {
+    return roleMatchesLoginPath(fromAccount, path) ? fromAccount : null;
+  }
+  // Bilinmeyen hesap: yol ile bağla (veli/çocuk → parent; öğretmen → teacher).
+  return path == LoginPath.teacher ? UserRole.teacher : UserRole.parent;
+}
 
 /// Supabase client. `Env.hasSupabase` false ise null (Demo Mode).
 final supabaseClientProvider = Provider<SupabaseClient?>((ref) {

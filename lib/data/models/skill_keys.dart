@@ -107,6 +107,34 @@ abstract final class SkillKeys {
         _ => null,
       };
 
+  /// skill_key → oturum kategori id (math/language hub).
+  static String? toCategory(String skillKey) => switch (skillKey) {
+        numberRecognition => 'number_recognition',
+        addition => 'addition',
+        subtraction => 'subtraction',
+        multiplication => 'multiplication',
+        division => 'division',
+        fractions => 'fractions',
+        fiveW1h => 'five_w1h',
+        antonyms => 'antonyms',
+        puzzle => 'puzzle',
+        tracing => 'lineFollow',
+        coloring => 'coloring',
+        categorization => 'categorization',
+        pattern => 'patternComplete',
+        dataReading => 'chart_reading',
+        memory => 'match',
+        speech => 'communication',
+        routine => 'routine',
+        aac => 'aac',
+        _ => null,
+      };
+
+  /// AI’ye gönderilecek kapalı liste açıklamaları.
+  static List<String> catalogLines() => [
+        for (final k in mvp) '$k — ${label(k)}',
+      ];
+
   static SkillArea areaFor(String skillKey) => switch (skillKey) {
         numberRecognition ||
         addition ||
@@ -126,3 +154,4 @@ abstract final class SkillKeys {
         _ => SkillArea.mathematics,
       };
 }
+

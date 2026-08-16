@@ -17,12 +17,22 @@ class _ColoringScreenState extends State<ColoringScreen> {
   var _color = CanvasPalette.colors.first;
   var _width = CanvasPalette.brushWidths[1];
   var _erase = false;
+  var _figureIndex = 0;
   Size _lastSize = Size.zero;
 
   void _ensureMask(Size size) {
-    if (_lastSize == size) return;
+    if (_lastSize == size && _engine.clipMask != null) return;
     _lastSize = size;
-    _engine.clipMask = CanvasPalette.sampleClipMask(size);
+    _engine.clipMask = CanvasPalette.outlineFor(_figureIndex, size);
+  }
+
+  void _nextFigure() {
+    setState(() {
+      _figureIndex =
+          (_figureIndex + 1) % CanvasPalette.figureLabels.length;
+      _engine.clear();
+      _lastSize = Size.zero;
+    });
   }
 
   @override
@@ -30,12 +40,17 @@ class _ColoringScreenState extends State<ColoringScreen> {
     return Scaffold(
       backgroundColor: LulunaColors.surface,
       appBar: AppBar(
-        title: const Text('Boyama'),
+        title: Text('Boyama — ${CanvasPalette.figureLabels[_figureIndex]}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/student'),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Başka figür',
+            onPressed: _nextFigure,
+            icon: const Icon(Icons.skip_next),
+          ),
           IconButton(
             tooltip: 'Geri al',
             onPressed: _engine.canUndo

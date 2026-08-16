@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../app/widgets/google_sign_in_button.dart';
 import '../../app/widgets/luluna_ui.dart';
 import '../../core/test_accounts.dart';
+import '../../data/models/user_role.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -52,6 +53,11 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
     Future<void> Function() action, {
     required bool isRegister,
   }) async {
+    final path = ref.read(loginPathProvider);
+    if (path == null && !isRegister) {
+      setState(() => _error = 'Önce giriş yolunu seçin.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -64,13 +70,26 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Kayıt tamam. Şimdi giriş yapın — ardından KVKK, '
-              'izinler ve rol seçimi istenecek.',
+              'Kayıt tamam. Şimdi giriş yolunu seçip giriş yapın.',
             ),
           ),
         );
       } else {
-        // Redirect: KVKK → izinler → rol → öğrenci/öğretmen.
+        final email = _email.text.trim();
+        final role = resolveRoleForLogin(email: email, path: path!);
+        if (role == null) {
+          await ref.read(authStateProvider.notifier).signOut();
+          setState(() {
+            _error = path == LoginPath.teacher
+                ? 'Bu hesap öğretmen girişi için uygun değil. '
+                    'Veli/Çocuk Girişi’ni kullanın.'
+                : 'Bu hesap veli/çocuk girişi için uygun değil. '
+                    'Öğretmen Girişi’ni kullanın.';
+          });
+          return;
+        }
+        await ref.read(appStateProvider.notifier).selectRole(role);
+        if (!mounted) return;
         context.go('/onboarding/consent');
       }
     } on AuthException catch (e) {
@@ -102,38 +121,100 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final path = ref.watch(loginPathProvider);
     final isRegister = _tabIndex == 1;
     final textTheme = Theme.of(context).textTheme;
 
+    if (path == null) {
+      return Scaffold(
+        backgroundColor: LulunaColors.surface,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 24),
+                const Center(child: LulunaLogo(size: 96)),
+                const SizedBox(height: 16),
+                Text(
+                  'Luluna',
+                  textAlign: TextAlign.center,
+                  style: textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: LulunaColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Giriş yolunu seçin — hesaplar birbirine karışmaz.',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: LulunaColors.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                LulunaPrimaryButton(
+                  label: 'Veli / Çocuk Girişi',
+                  onPressed: () =>
+                      ref.read(loginPathProvider.notifier).setPath(
+                            LoginPath.family,
+                          ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                  ),
+                  onPressed: () =>
+                      ref.read(loginPathProvider.notifier).setPath(
+                            LoginPath.teacher,
+                          ),
+                  child: const Text('Öğretmen Girişi'),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final pathTitle = path == LoginPath.teacher
+        ? 'Öğretmen Girişi'
+        : 'Veli / Çocuk Girişi';
+    final demoAccounts = TestAccounts.all.where((a) {
+      final role = UserRole.parse(a.roleHint);
+      if (role == null) return false;
+      return roleMatchesLoginPath(role, path);
+    });
+
     return Scaffold(
       backgroundColor: LulunaColors.surface,
+      appBar: AppBar(
+        title: Text(pathTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            ref.read(loginPathProvider.notifier).clear();
+            setState(() => _error = null);
+          },
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           children: [
-            const SizedBox(height: 12),
-            const Center(child: LulunaLogo(size: 96)),
-            const SizedBox(height: 16),
             Text(
-              'Luluna',
-              textAlign: TextAlign.center,
-              style: textTheme.headlineLarge?.copyWith(
-                fontSize: 26,
-                fontWeight: FontWeight.w700,
-                color: LulunaColors.primary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isRegister
-                  ? 'Yeni hesap oluştur'
-                  : 'Özel eğitim platformuna hoş geldiniz',
+              path == LoginPath.teacher
+                  ? 'Yalnızca öğretmen hesapları'
+                  : 'Veli ve öğrenci hesapları',
               textAlign: TextAlign.center,
               style: textTheme.bodyLarge?.copyWith(
                 color: LulunaColors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             LulunaCard(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -173,16 +254,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                     onToggleObscure: () =>
                         setState(() => _obscure = !_obscure),
                   ),
-                  if (isRegister) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Kayıt sonrası giriş yapınca KVKK onayı ve '
-                      'temel izinler istenir.',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: LulunaColors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
                   if (_error != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -229,7 +300,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                     const Divider(),
                     const SizedBox(height: 16),
                     Text(
-                      'Test hesapları',
+                      'Test hesapları (bu yol)',
                       textAlign: TextAlign.center,
                       style: textTheme.labelSmall?.copyWith(
                         color: LulunaColors.onSurfaceVariant,
@@ -241,7 +312,7 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final account in TestAccounts.all)
+                        for (final account in demoAccounts)
                           ActionChip(
                             avatar: Icon(
                               _demoIcon(account.roleHint),
@@ -264,14 +335,6 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
                     ),
                   ],
                 ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              '© LuLuna Eğitim',
-              textAlign: TextAlign.center,
-              style: textTheme.labelSmall?.copyWith(
-                color: LulunaColors.outline,
               ),
             ),
           ],

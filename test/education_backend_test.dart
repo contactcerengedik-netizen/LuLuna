@@ -23,6 +23,9 @@ class _EmptyPrimary implements EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   }) async =>
       const [];
 
@@ -50,6 +53,9 @@ class _ThrowingPrimary implements EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   }) async {
     throw StateError('cloud down');
   }

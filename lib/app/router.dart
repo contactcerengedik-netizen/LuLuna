@@ -34,6 +34,7 @@ import '../features/social_speech/data/social_dialogue_catalog.dart';
 import '../features/social_speech/presentation/social_speech_hub_screen.dart';
 import '../features/student/presentation/student_home_screen.dart';
 import '../features/teacher/presentation/teacher_dashboard_screen.dart';
+import '../features/teacher/presentation/teacher_routine_editor_screen.dart';
 import '../features/teacher/presentation/teacher_student_detail_screen.dart';
 import '../features/tracing/domain/tracing_analyzer.dart';
 import '../features/tracing/presentation/tracing_hub_screen.dart';
@@ -47,8 +48,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/auth',
     refreshListenable: refresh,
-    // Auth → KVKK → izinler → rol → student | teacher
+    // Auth → KVKK → izinler → (rol auth’ta atanır) → student | teacher
     // parent (MVP): öğrenci akışına düşer
+    // /onboarding/role artık serbest seçim değil; boş role → auth.
     redirect: (context, state) {
       final auth = ref.read(authStateProvider);
       final app = ref.read(appStateProvider);
@@ -212,7 +214,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/student/daily-life/routine',
-        builder: (context, state) => const RoutinePlayScreen(),
+        builder: (context, state) => RoutinePlayScreen(
+          routineId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: '/student/daily-life/aac',
@@ -330,6 +334,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/teacher/reports',
         builder: (context, state) => const TeacherReportsScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/routines',
+        builder: (context, state) => const TeacherRoutineEditorScreen(),
       ),
     ],
   );

@@ -186,9 +186,21 @@ class _PuzzlePlayScreenState extends ConsumerState<PuzzlePlayScreen> {
                 flex: 3,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final boardSize =
-                        Size(constraints.maxWidth, constraints.maxHeight);
-                    return DragTarget<int>(
+                    // Kaynak sahne oranı (4:3) — hücreleri kare/dar sıkıştırmadan koru.
+                    final maxW = constraints.maxWidth;
+                    final maxH = constraints.maxHeight;
+                    var boardW = maxW;
+                    var boardH = boardW * 3 / 4;
+                    if (boardH > maxH) {
+                      boardH = maxH;
+                      boardW = boardH * 4 / 3;
+                    }
+                    final boardSize = Size(boardW, boardH);
+                    return Center(
+                      child: SizedBox(
+                        width: boardW,
+                        height: boardH,
+                        child: DragTarget<int>(
                       onWillAcceptWithDetails: (_) => true,
                       onAcceptWithDetails: (details) {
                         final box = context.findRenderObject() as RenderBox?;
@@ -230,6 +242,8 @@ class _PuzzlePlayScreenState extends ConsumerState<PuzzlePlayScreen> {
                           ),
                         );
                       },
+                    ),
+                      ),
                     );
                   },
                 ),
@@ -243,52 +257,61 @@ class _PuzzlePlayScreenState extends ConsumerState<PuzzlePlayScreen> {
               ),
               const SizedBox(height: 8),
               SizedBox(
-                height: 96,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (final id in _board.tray)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: Draggable<int>(
-                          data: id,
-                          onDragStarted: () =>
-                              setState(() => _dragging = id),
-                          onDraggableCanceled: (_, _) =>
-                              setState(() => _dragging = null),
-                          feedback: SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: PuzzlePieceFace(
-                              srcRect: _board.sliceFor(id).srcRect,
-                              label: '${id + 1}',
-                            ),
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
-                            child: SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: PuzzlePieceFace(
-                                srcRect: _board.sliceFor(id).srcRect,
-                                label: '${id + 1}',
+                height: 100,
+                child: Builder(
+                  builder: (context) {
+                    const boardAspect = 4 / 3;
+                    final cellAspect =
+                        boardAspect * (_board.rows / _board.cols);
+                    const pieceH = 80.0;
+                    final pieceW = pieceH * cellAspect;
+                    return ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (final id in _board.tray)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Draggable<int>(
+                              data: id,
+                              onDragStarted: () =>
+                                  setState(() => _dragging = id),
+                              onDraggableCanceled: (_, _) =>
+                                  setState(() => _dragging = null),
+                              feedback: SizedBox(
+                                width: pieceW,
+                                height: pieceH,
+                                child: PuzzlePieceFace(
+                                  srcRect: _board.sliceFor(id).srcRect,
+                                  label: '${id + 1}',
+                                ),
+                              ),
+                              childWhenDragging: Opacity(
+                                opacity: 0.3,
+                                child: SizedBox(
+                                  width: pieceW,
+                                  height: pieceH,
+                                  child: PuzzlePieceFace(
+                                    srcRect: _board.sliceFor(id).srcRect,
+                                    label: '${id + 1}',
+                                  ),
+                                ),
+                              ),
+                              child: SizedBox(
+                                width: pieceW,
+                                height: pieceH,
+                                child: Opacity(
+                                  opacity: _dragging == id ? 0.85 : 1,
+                                  child: PuzzlePieceFace(
+                                    srcRect: _board.sliceFor(id).srcRect,
+                                    label: '${id + 1}',
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          child: SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: Opacity(
-                              opacity: _dragging == id ? 0.85 : 1,
-                              child: PuzzlePieceFace(
-                                srcRect: _board.sliceFor(id).srcRect,
-                                label: '${id + 1}',
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
               if (_wrongHint) ...[

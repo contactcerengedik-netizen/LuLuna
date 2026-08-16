@@ -5,6 +5,7 @@ import '../../../../app/widgets/education_ui.dart';
 import '../../../../app/widgets/luluna_ui.dart';
 import '../../../../data/models/education_question.dart';
 import '../../../../data/models/sequence_question.dart';
+import 'education_question_visual.dart';
 
 /// Çoktan seçmeli / tablo sorusu görünümü.
 class ChoiceQuestionView extends StatelessWidget {
@@ -32,6 +33,8 @@ class ChoiceQuestionView extends StatelessWidget {
                 color: LulunaColors.primary,
               ),
         ),
+        const SizedBox(height: 12),
+        EducationQuestionVisual(question: question),
         const SizedBox(height: 12),
         if (type == 'table') ...[
           _SimpleTableCard(question: question),
@@ -159,6 +162,8 @@ class _OrderQuestionViewState extends State<OrderQuestionView> {
               ),
         ),
         const SizedBox(height: 8),
+        EducationQuestionVisual(question: widget.question),
+        const SizedBox(height: 8),
         Text(
           widget.question.questionText,
           style: Theme.of(context).textTheme.bodyLarge,
@@ -184,24 +189,43 @@ class _OrderQuestionViewState extends State<OrderQuestionView> {
           },
           itemBuilder: (context, index) {
             final item = _ordered[index];
-            return ListTile(
+            final iconsRaw = widget.question.metadata['cardIcons'];
+            IconData? icon;
+            if (iconsRaw is Map && iconsRaw[item] != null) {
+              icon = _iconFor('${iconsRaw[item]}');
+            }
+            return Card(
               key: ValueKey('$index-$item'),
-              tileColor: LulunaColors.surfaceContainerLowest,
+              color: LulunaColors.surfaceContainerLowest,
+              margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 side: const BorderSide(color: LulunaColors.outlineVariant),
               ),
-              leading: CircleAvatar(
-                backgroundColor: LulunaColors.secondaryContainer,
-                child: Text('${index + 1}'),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                leading: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: LulunaColors.secondaryContainer,
+                  child: icon != null
+                      ? Icon(icon, size: 28, color: LulunaColors.primary)
+                      : Text(
+                          '${index + 1}',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+                title: Text(
+                  item,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+                trailing: widget.enabled
+                    ? const Icon(Icons.drag_handle, size: 28)
+                    : null,
               ),
-              title: Text(
-                item,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-              ),
-              trailing: widget.enabled
-                  ? const Icon(Icons.drag_handle)
-                  : null,
             );
           },
         ),
@@ -215,6 +239,38 @@ class _OrderQuestionViewState extends State<OrderQuestionView> {
       ],
     );
   }
+
+  IconData _iconFor(String name) => switch (name) {
+        'person' => Icons.person,
+        'sports_soccer' => Icons.sports_soccer,
+        'beach_access' => Icons.beach_access,
+        'directions_bike' => Icons.directions_bike,
+        'park' => Icons.park,
+        'menu_book' => Icons.menu_book,
+        'home' => Icons.home,
+        'edit' => Icons.edit,
+        'school' => Icons.school,
+        'local_florist' => Icons.local_florist,
+        'yard' => Icons.yard,
+        'bakery_dining' => Icons.bakery_dining,
+        'storefront' => Icons.storefront,
+        'soup_kitchen' => Icons.soup_kitchen,
+        'kitchen' => Icons.kitchen,
+        'pets' => Icons.pets,
+        'local_library' => Icons.local_library,
+        'castle' => Icons.castle,
+        'bedtime' => Icons.bedtime,
+        'cleaning_services' => Icons.cleaning_services,
+        'checkroom' => Icons.checkroom,
+        'backpack' => Icons.backpack,
+        'restaurant' => Icons.restaurant,
+        'soap' => Icons.soap,
+        'favorite' => Icons.favorite,
+        'mood' => Icons.mood,
+        'wb_sunny' => Icons.wb_sunny,
+        'circle' => Icons.circle,
+        _ => Icons.touch_app,
+      };
 }
 
 class QuestionPlayer extends StatelessWidget {

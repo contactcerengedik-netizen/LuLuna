@@ -151,6 +151,13 @@ class TeacherDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             EducationBigTile(
+              title: 'Rutin Sıralama',
+              subtitle: 'Yeni rutin seti ekle',
+              leading: const EducationModuleIcon(icon: Icons.reorder),
+              onTap: () => context.push('/teacher/routines'),
+            ),
+            const SizedBox(height: 12),
+            EducationBigTile(
               title: 'Kavram Motoru',
               subtitle: 'Tek kavram → 15 alana yay',
               leading: const EducationModuleIcon(icon: Icons.hub_outlined),

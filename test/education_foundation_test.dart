@@ -61,8 +61,8 @@ void main() {
       final students = await repo.studentsForTeacher('t1');
       expect(students.length, greaterThanOrEqualTo(2));
       final qs = await repo.sampleQuestions(skill: SkillArea.mathematics);
-      expect(qs, isNotEmpty);
-      expect(qs.first.correctAnswer, '8');
+      expect(qs.length, greaterThanOrEqualTo(8));
+      expect(qs.first.isCorrect(qs.first.correctAnswer), isTrue);
     });
   });
 }

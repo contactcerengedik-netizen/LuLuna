@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/education_question.dart';
 import '../models/skill_level.dart';
 import '../models/student_profile.dart';
+import '../../features/education/domain/question_selection.dart';
 import 'education_repository.dart';
 import 'education_row_mapper.dart';
 
@@ -101,15 +102,21 @@ class SupabaseEducationRepository implements EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   }) async {
     try {
-      final rows = await _client
+      var query = _client
           .from('activities')
           .select('id, skill, category, title, difficulty, payload, approved')
           .eq('skill', skill.name)
           .eq('difficulty', difficulty.name)
-          .eq('approved', true)
-          .limit(20);
+          .eq('approved', true);
+      if (category != null && category.isNotEmpty) {
+        query = query.eq('category', category);
+      }
+      final rows = await query.limit(40);
       final out = <EducationQuestion>[];
       for (final r in (rows as List)) {
         if (r is! Map) continue;
@@ -118,7 +125,11 @@ class SupabaseEducationRepository implements EducationRepository {
         );
         if (q != null) out.add(q);
       }
-      return out;
+      return QuestionSelection.pickWithoutRecent(
+        pool: out,
+        recentIds: excludeIds,
+        count: count,
+      );
     } catch (e, st) {
       debugPrint('SupabaseEducationRepository.sampleQuestions: $e\n$st');
       rethrow;
@@ -185,17 +196,29 @@ class FallbackEducationRepository implements EducationRepository {
   Future<List<EducationQuestion>> sampleQuestions({
     required SkillArea skill,
     SkillTier difficulty = SkillTier.easy,
+    String? category,
+    List<String> excludeIds = const [],
+    int count = 10,
   }) async {
     try {
       final remote = await primary.sampleQuestions(
         skill: skill,
         difficulty: difficulty,
+        category: category,
+        excludeIds: excludeIds,
+        count: count,
       );
       if (remote.isNotEmpty) return remote;
     } catch (e) {
       debugPrint('Education fallback sampleQuestions: $e');
     }
-    return fallback.sampleQuestions(skill: skill, difficulty: difficulty);
+    return fallback.sampleQuestions(
+      skill: skill,
+      difficulty: difficulty,
+      category: category,
+      excludeIds: excludeIds,
+      count: count,
+    );
   }
 
   @override

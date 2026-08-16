@@ -1,4 +1,54 @@
+import '../../../data/models/skill_keys.dart';
 import '../../../data/models/skill_level.dart';
+
+/// Faz 19 — kapalı skill_key + confidence ile AI parse sonucu.
+class TeacherAiParseResult {
+  const TeacherAiParseResult({
+    required this.structured,
+    required this.confidence,
+    this.skillKey,
+    this.imagePrompt,
+    this.needsCategoryReview = false,
+  });
+
+  final StructuredActivity structured;
+  final String? skillKey;
+  final double confidence;
+  final String? imagePrompt;
+  final bool needsCategoryReview;
+
+  static const confidenceThreshold = 0.6;
+
+  factory TeacherAiParseResult.fromAiMap(
+    Map<String, dynamic> map, {
+    required List<String> validSkillKeys,
+  }) {
+    final rawKey = '${map['skillKey'] ?? map['skill_key'] ?? ''}'.trim();
+    final confidence = (map['confidence'] is num)
+        ? (map['confidence'] as num).toDouble()
+        : double.tryParse('${map['confidence']}') ?? 0.0;
+    final inList = rawKey.isNotEmpty && validSkillKeys.contains(rawKey);
+    final needsReview = !inList || confidence < confidenceThreshold;
+    final structured = StructuredActivity.fromMap({
+      ...map,
+      'activityType': map['activityType'] ??
+          (inList ? 'teacher_ai_$rawKey' : 'teacher_ai_pending'),
+      'difficulty': map['difficulty'] ?? 'medium',
+      'instruction': map['instruction'] ?? 'Soruyu görsele bakarak çöz.',
+      'questionText': map['questionText'] ?? map['question'] ?? '',
+      'answer': map['correctAnswer'] ?? map['answer'] ?? '',
+      'choices': map['choices'] ?? const [],
+    });
+    return TeacherAiParseResult(
+      structured: structured,
+      skillKey: inList ? rawKey : null,
+      confidence: confidence.clamp(0.0, 1.0),
+      imagePrompt:
+          map['imagePrompt'] as String? ?? map['image_prompt'] as String?,
+      needsCategoryReview: needsReview,
+    );
+  }
+}
 
 /// AI'dan gelen yapılandırılmış etkinlik (görsel üretiminden ayrı).
 class StructuredActivity {
@@ -35,9 +85,10 @@ class StructuredActivity {
     List<String>? choices,
     String? explanation,
     SkillTier? difficulty,
+    String? activityType,
   }) {
     return StructuredActivity(
-      activityType: activityType,
+      activityType: activityType ?? this.activityType,
       difficulty: difficulty ?? this.difficulty,
       instruction: instruction ?? this.instruction,
       questionText: questionText ?? this.questionText,
@@ -123,7 +174,14 @@ class GeneratedImage {
   }
 }
 
-enum AiActivityStatus { draft, preview, approved, published }
+enum AiActivityStatus {
+  draft,
+  preview,
+  approved,
+  published,
+  /// Kota doldu — görsel sonra üretilecek (otomatik retry yok).
+  pendingRetry,
+}
 
 /// Öğretmen onay akışındaki AI etkinliği.
 class TeacherAiActivity {
@@ -139,6 +197,12 @@ class TeacherAiActivity {
     this.scenePlan,
     this.approvedAt,
     this.publishedAt,
+    this.skillKey,
+    this.confidence = 0,
+    this.needsCategoryReview = false,
+    this.targetStudentId,
+    this.imagePending = false,
+    this.source = 'teacher_ai_generated',
   });
 
   final String id;
@@ -152,15 +216,27 @@ class TeacherAiActivity {
   final VisualScenePlan? scenePlan;
   final DateTime? approvedAt;
   final DateTime? publishedAt;
+  final String? skillKey;
+  final double confidence;
+  final bool needsCategoryReview;
+  final String? targetStudentId;
+  final bool imagePending;
+  final String source;
 
   /// Öğrenci yalnızca yayınlanmış içeriği görür (önizleme/onay yeterli değil).
   bool get isStudentVisible => status == AiActivityStatus.published;
+
+  bool get canPublish =>
+      !needsCategoryReview &&
+      skillKey != null &&
+      SkillKeys.mvp.contains(skillKey);
 
   String get statusLabel => switch (status) {
         AiActivityStatus.draft => 'Taslak',
         AiActivityStatus.preview => 'Önizleme',
         AiActivityStatus.approved => 'Onaylı (yayın bekliyor)',
         AiActivityStatus.published => 'Yayında',
+        AiActivityStatus.pendingRetry => 'Görsel bekliyor (kota)',
       };
 
   TeacherAiActivity copyWith({
@@ -172,6 +248,14 @@ class TeacherAiActivity {
     VisualScenePlan? scenePlan,
     DateTime? approvedAt,
     DateTime? publishedAt,
+    String? skillKey,
+    double? confidence,
+    bool? needsCategoryReview,
+    String? targetStudentId,
+    bool? imagePending,
+    String? source,
+    bool clearSkillKey = false,
+    bool clearTargetStudent = false,
   }) {
     return TeacherAiActivity(
       id: id,
@@ -185,6 +269,13 @@ class TeacherAiActivity {
       scenePlan: scenePlan ?? this.scenePlan,
       approvedAt: approvedAt ?? this.approvedAt,
       publishedAt: publishedAt ?? this.publishedAt,
+      skillKey: clearSkillKey ? null : (skillKey ?? this.skillKey),
+      confidence: confidence ?? this.confidence,
+      needsCategoryReview: needsCategoryReview ?? this.needsCategoryReview,
+      targetStudentId:
+          clearTargetStudent ? null : (targetStudentId ?? this.targetStudentId),
+      imagePending: imagePending ?? this.imagePending,
+      source: source ?? this.source,
     );
   }
 
@@ -200,6 +291,12 @@ class TeacherAiActivity {
         'publishedAt': publishedAt?.toIso8601String(),
         'analysis': analysis?.toMap(),
         'scenePlan': scenePlan?.toMap(),
+        'skillKey': skillKey,
+        'confidence': confidence,
+        'needsCategoryReview': needsCategoryReview,
+        'targetStudentId': targetStudentId,
+        'imagePending': imagePending,
+        'source': source,
       };
 
   factory TeacherAiActivity.fromMap(Map<String, dynamic> map) {
@@ -229,6 +326,12 @@ class TeacherAiActivity {
               Map<String, dynamic>.from(map['scenePlan'] as Map),
             )
           : null,
+      skillKey: map['skillKey'] as String?,
+      confidence: (map['confidence'] as num?)?.toDouble() ?? 0,
+      needsCategoryReview: map['needsCategoryReview'] as bool? ?? false,
+      targetStudentId: map['targetStudentId'] as String?,
+      imagePending: map['imagePending'] as bool? ?? false,
+      source: map['source'] as String? ?? 'teacher_ai_generated',
     );
   }
 }

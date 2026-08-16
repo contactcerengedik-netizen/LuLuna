@@ -102,8 +102,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Özel eğitim platformuna hoş geldiniz'), findsOneWidget);
-    expect(find.text('Giriş Yap'), findsOneWidget);
+    expect(find.text('Veli / Çocuk Girişi'), findsOneWidget);
+    expect(find.text('Öğretmen Girişi'), findsOneWidget);
     expect(find.text('Luluna'), findsWidgets);
   });
 }

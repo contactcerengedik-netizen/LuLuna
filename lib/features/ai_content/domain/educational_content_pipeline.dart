@@ -1,6 +1,8 @@
+import '../../../data/models/skill_keys.dart';
 import '../../../data/models/skill_level.dart';
 import 'ai_content_models.dart';
 import 'ai_content_services.dart';
+import 'image_quota_exception.dart';
 import 'question_image_spec.dart';
 
 class PipelineValidation {
@@ -13,8 +15,7 @@ class PipelineValidation {
   final List<String> issues;
 }
 
-/// Teacher Prompt → analiz → structured JSON → seviye → sahne planı →
-/// görsel prompt → görsel → önizleme (öğrenciye gitmez).
+/// Teacher Prompt → kapalı skill_key → structured → görsel (tek sefer) → önizleme.
 class EducationalContentPipeline {
   EducationalContentPipeline({
     required AiContentService content,
@@ -31,23 +32,51 @@ class EducationalContentPipeline {
   Future<TeacherAiActivity> generate({
     required String teacherPrompt,
     required String id,
+    SkillTier? suggestedDifficulty,
+    String? targetStudentId,
+    bool deferImageOnQuota = true,
   }) async {
     final analysis = analyzePrompt(teacherPrompt);
-    final structured = await _content.parseTeacherPrompt(teacherPrompt);
-    final adapted = _adaptDifficulty(structured, analysis);
-    final scenePlan = VisualScenePlan.fromStructured(adapted);
-    final visualPrompt = _visual.build(adapted, scenePlan: scenePlan);
-    final image = await _images.generateImageForQuestion(
-      QuestionImageSpec(
-        sceneDescription: adapted.questionText,
-        questionId: id,
-        objects: [
-          for (final o in adapted.objects) '${o['type'] ?? 'object'}',
-        ],
-        mustMatchCount: int.tryParse(adapted.answer),
-        consistencyGroupId: id,
-      ),
+    final parsed = await _content.parseTeacherQuestion(
+      prompt: teacherPrompt,
+      validSkillKeys: SkillKeys.mvp,
+      suggestedDifficulty: suggestedDifficulty,
     );
+    var adapted = _adaptDifficulty(parsed.structured, analysis);
+    if (suggestedDifficulty != null && parsed.confidence < 0.6) {
+      adapted = adapted.copyWith(difficulty: suggestedDifficulty);
+    }
+    final scenePlan = VisualScenePlan.fromStructured(adapted);
+    final visualPrompt = parsed.imagePrompt?.trim().isNotEmpty == true
+        ? parsed.imagePrompt!.trim()
+        : _visual.build(adapted, scenePlan: scenePlan);
+
+    GeneratedImage image;
+    var imagePending = false;
+    var status = AiActivityStatus.preview;
+    try {
+      image = await _images.generateImageForQuestion(
+        QuestionImageSpec(
+          sceneDescription: visualPrompt,
+          questionId: id,
+          objects: [
+            for (final o in adapted.objects) '${o['type'] ?? 'object'}',
+          ],
+          mustMatchCount: int.tryParse(adapted.answer),
+          consistencyGroupId: id,
+        ),
+      );
+    } on ImageQuotaExceededException {
+      if (!deferImageOnQuota) rethrow;
+      imagePending = true;
+      status = AiActivityStatus.pendingRetry;
+      image = GeneratedImage(
+        prompt: visualPrompt,
+        description: 'Görsel daha sonra eklenecek (kota)',
+        isMock: true,
+      );
+    }
+
     final validation = validate(adapted);
     final explained = validation.ok
         ? adapted
@@ -56,20 +85,51 @@ class EducationalContentPipeline {
                 '${adapted.explanation ?? ''}\nUyarı: ${validation.issues.join('; ')}'
                     .trim(),
           );
+
     return TeacherAiActivity(
       id: id,
       teacherPrompt: teacherPrompt,
       structured: explained,
       visualPrompt: visualPrompt,
       image: image,
-      status: AiActivityStatus.preview,
+      status: status,
       createdAt: DateTime.now(),
       analysis: analysis,
       scenePlan: scenePlan,
+      skillKey: parsed.skillKey,
+      confidence: parsed.confidence,
+      needsCategoryReview: parsed.needsCategoryReview,
+      targetStudentId: targetStudentId,
+      imagePending: imagePending,
+      source: 'teacher_ai_generated',
     );
   }
 
-  /// Kişi / nesne / sayı / işlem çıkarımı (mock-friendly, deterministik).
+  /// Tek seferlik görsel yeniden üretimi (önizlemede öğretmen isteği).
+  Future<TeacherAiActivity> regenerateImage(TeacherAiActivity activity) async {
+    final img = await _images.generateImageForQuestion(
+      QuestionImageSpec(
+        sceneDescription: activity.visualPrompt.isNotEmpty
+            ? activity.visualPrompt
+            : activity.structured.questionText,
+        questionId: '${activity.id}_regen',
+        objects: [
+          for (final o in activity.structured.objects)
+            '${o['type'] ?? 'object'}',
+        ],
+        mustMatchCount: int.tryParse(activity.structured.answer),
+        consistencyGroupId: activity.id,
+      ),
+    );
+    return activity.copyWith(
+      image: img,
+      imagePending: false,
+      status: activity.status == AiActivityStatus.pendingRetry
+          ? AiActivityStatus.preview
+          : activity.status,
+    );
+  }
+
   ContentAnalysis analyzePrompt(String prompt) {
     final lower = prompt.toLowerCase();
     final people = <String>[];

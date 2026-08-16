@@ -3,10 +3,12 @@ import 'dart:math';
 import '../../../data/models/education_question.dart';
 import '../../../data/models/skill_level.dart';
 import '../../education/domain/activity_engine.dart';
+import '../../education/domain/question_selection.dart';
+import '../../education/domain/scene_visual_spec.dart';
 
 /// Matematik soru üretici — seviye ve kategoriye göre üretir.
 class MathQuestionGenerator implements QuestionGenerator {
-  MathQuestionGenerator({Random? random}) : _rng = random ?? Random(42);
+  MathQuestionGenerator({Random? random}) : _rng = random ?? Random();
 
   final Random _rng;
 
@@ -17,12 +19,46 @@ class MathQuestionGenerator implements QuestionGenerator {
   List<EducationQuestion> generate({
     required String category,
     required SkillTier difficulty,
-    int count = 5,
+    int count = 10,
+    List<String> excludeIds = const [],
   }) {
-    return List.generate(
-      count,
-      (i) => _one(category: category, difficulty: difficulty, index: i),
+    final pool = <String, EducationQuestion>{};
+    final target = max(QuestionSelection.minPoolSize, count * 3);
+    for (var i = 0; i < 120 && pool.length < target; i++) {
+      final q = _one(category: category, difficulty: difficulty, index: i);
+      final stableId = _stableId(q);
+      pool.putIfAbsent(
+        stableId,
+        () => EducationQuestion(
+          id: stableId,
+          category: q.category,
+          skill: q.skill,
+          difficulty: q.difficulty,
+          instruction: q.instruction,
+          questionText: q.questionText,
+          imageUrl: q.imageUrl ?? 'mock://math/${q.category}',
+          solutionImageUrl:
+              q.solutionImageUrl ?? 'mock://math/${q.category}/solution',
+          audioUrl: q.audioUrl,
+          choices: q.choices,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          metadata: q.metadata,
+        ),
+      );
+    }
+    return QuestionSelection.pickWithoutRecent(
+      pool: pool.values.toList(),
+      recentIds: excludeIds,
+      count: count,
+      random: _rng,
     );
+  }
+
+  String _stableId(EducationQuestion q) {
+    final key =
+        '${q.category}|${q.difficulty.name}|${q.questionText}|${q.correctAnswer}';
+    return 'math-${q.category}-${q.difficulty.name}-${key.hashCode.abs()}';
   }
 
   EducationQuestion _one({
@@ -169,156 +205,88 @@ class MathQuestionGenerator implements QuestionGenerator {
   }
 
   EducationQuestion _addition(SkillTier d, int index) {
-    return switch (d) {
-      SkillTier.easy => () {
-          final a = _rng.nextInt(5) + 1;
-          final b = _rng.nextInt(5) + 1;
-          final sum = a + b;
-          return EducationQuestion(
-            id: 'math-add-e-$index-$a-$b',
-            category: 'addition',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Toplamı bul.',
-            questionText: '${'●' * a} + ${'●' * b} = ?',
-            choices: _choicesAround(sum),
-            correctAnswer: '$sum',
-            explanation: '$a + $b = $sum',
-            metadata: {
-              'type': 'multipleChoice',
-              'a': a,
-              'b': b,
-              'visualDots': true,
-            },
-          );
-        }(),
-      SkillTier.medium => () {
-          final fridge = _rng.nextInt(4) + 3;
-          final hand = _rng.nextInt(3) + 1;
-          final sum = fridge + hand;
-          return EducationQuestion(
-            id: 'math-add-m-$index-$fridge-$hand',
-            category: 'addition',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Problemi oku ve çöz.',
-            questionText:
-                'Buzdolabında $fridge yumurta var.\n'
-                'Ayşe’nin elinde $hand yumurta var.\n'
-                'Ayşe yumurtaları buzdolabına koyuyor.\n'
-                'Kaç yumurta olur?',
-            choices: _choicesAround(sum),
-            correctAnswer: '$sum',
-            explanation: '$fridge + $hand = $sum',
-            metadata: {
-              'type': 'multipleChoice',
-              'a': fridge,
-              'b': hand,
-              'scene': ['Ayşe', 'yumurta', 'buzdolabı'],
-            },
-          );
-        }(),
-      SkillTier.hard => () {
-          final age = _rng.nextInt(5) + 8;
-          final years = _rng.nextInt(3) + 2;
-          final books = _rng.nextInt(4) + 3;
-          final more = _rng.nextInt(3) + 1;
-          final sum = books + more;
-          return EducationQuestion(
-            id: 'math-add-h-$index-$books-$more',
-            category: 'addition',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Gerekli bilgiyi bul ve çöz.',
-            questionText:
-                'Mehmet $age yaşında. $years yıl sonra okula başlayacak.\n'
-                'Bugün rafta $books kitap var. Mehmet $more kitap daha koyuyor.\n'
-                'Rafta kaç kitap olur?',
-            choices: _choicesAround(sum),
-            correctAnswer: '$sum',
-            explanation: 'Yaş bilgisi gerekmez. $books + $more = $sum',
-            metadata: {
-              'type': 'multipleChoice',
-              'a': books,
-              'b': more,
-              'twoStep': true,
-            },
-          );
-        }(),
+    final a = switch (d) {
+      SkillTier.easy => 1 + (index % 5),
+      SkillTier.medium => 2 + (index % 5),
+      SkillTier.hard => 3 + (index % 6),
     };
+    final b = switch (d) {
+      SkillTier.easy => 1 + ((index * 3) % 5),
+      SkillTier.medium => 1 + ((index * 2) % 4),
+      SkillTier.hard => 2 + ((index * 3) % 5),
+    };
+    final story = SceneVisualSpec.mathAddStory(index: index, a: a, b: b);
+    final sum = a + b;
+    final distractorNote = d == SkillTier.hard
+        ? '\n(${story.spec.character} ${8 + index % 5} yaşında — bu bilgi gerekmez.)'
+        : '';
+    return EducationQuestion(
+      id: 'math-add-${d.name}-$index-$a-$b',
+      category: 'addition',
+      skill: SkillArea.mathematics,
+      difficulty: d,
+      instruction: d == SkillTier.hard
+          ? 'Gerekli bilgiyi bul ve çöz.'
+          : d == SkillTier.easy
+              ? 'Görsele bak, toplamı bul.'
+              : 'Problemi oku ve görsele bak.',
+      questionText: '${story.text}$distractorNote',
+      imageUrl: 'mock://math/addition/${story.spec.template}',
+      solutionImageUrl:
+          'mock://math/addition/${story.spec.template}/solution',
+      choices: _choicesAround(sum),
+      correctAnswer: '$sum',
+      explanation: story.explanation,
+      metadata: {
+        'type': 'multipleChoice',
+        'a': a,
+        'b': b,
+        'sceneVisual': story.spec.toMap(),
+        if (d == SkillTier.hard) 'twoStep': true,
+      },
+    );
   }
 
   EducationQuestion _subtraction(SkillTier d, int index) {
-    return switch (d) {
-      SkillTier.easy => () {
-          final a = _rng.nextInt(8) + 3;
-          final b = _rng.nextInt(a - 1) + 1;
-          final diff = a - b;
-          return EducationQuestion(
-            id: 'math-sub-e-$index-$a-$b',
-            category: 'subtraction',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Farkı bul.',
-            questionText: '${'●' * a} − ${'●' * b} = ?',
-            choices: _choicesAround(diff),
-            correctAnswer: '$diff',
-            explanation: '$a - $b = $diff',
-            metadata: {
-              'type': 'multipleChoice',
-              'a': a,
-              'b': b,
-              'visualDots': true,
-            },
-          );
-        }(),
-      SkillTier.medium => () {
-          final start = _rng.nextInt(6) + 6;
-          final take = _rng.nextInt(4) + 1;
-          final diff = start - take;
-          return EducationQuestion(
-            id: 'math-sub-m-$index-$start-$take',
-            category: 'subtraction',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Problemi oku ve çöz.',
-            questionText:
-                'Sepette $start elma var.\n'
-                'Ayşe $take elma yiyor.\n'
-                'Sepette kaç elma kalır?',
-            choices: _choicesAround(diff),
-            correctAnswer: '$diff',
-            explanation: '$start - $take = $diff',
-            metadata: {'type': 'multipleChoice', 'a': start, 'b': take},
-          );
-        }(),
-      SkillTier.hard => () {
-          final age = _rng.nextInt(4) + 9;
-          final start = _rng.nextInt(8) + 8;
-          final give = _rng.nextInt(4) + 2;
-          final diff = start - give;
-          return EducationQuestion(
-            id: 'math-sub-h-$index-$start-$give',
-            category: 'subtraction',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Gerekli bilgiyi bul ve çöz.',
-            questionText:
-                'Zeynep $age yaşında ve mavi bir çanta taşıyor.\n'
-                'Rafta $start kalem vardı. Zeynep $give kalem aldı.\n'
-                'Rafta kaç kalem kaldı?',
-            choices: _choicesAround(diff),
-            correctAnswer: '$diff',
-            explanation: 'Yaş/çanta gerekmez. $start - $give = $diff',
-            metadata: {
-              'type': 'multipleChoice',
-              'a': start,
-              'b': give,
-              'twoStep': true,
-            },
-          );
-        }(),
+    final start = switch (d) {
+      SkillTier.easy => 3 + (index % 6),
+      SkillTier.medium => 6 + (index % 6),
+      SkillTier.hard => 8 + (index % 8),
     };
+    final take = switch (d) {
+      SkillTier.easy => 1 + (index % (start - 1).clamp(1, 3)),
+      SkillTier.medium => 1 + ((index * 2) % 4),
+      SkillTier.hard => 2 + ((index * 3) % 4),
+    }.clamp(1, start - 1);
+    final story =
+        SceneVisualSpec.mathSubStory(index: index, start: start, take: take);
+    final diff = start - take;
+    final distractor = d == SkillTier.hard
+        ? '\n(${story.spec.character} ${9 + index % 4} yaşında — gerekmez.)'
+        : '';
+    return EducationQuestion(
+      id: 'math-sub-${d.name}-$index-$start-$take',
+      category: 'subtraction',
+      skill: SkillArea.mathematics,
+      difficulty: d,
+      instruction: d == SkillTier.hard
+          ? 'Gerekli bilgiyi bul ve çöz.'
+          : 'Problemi oku ve görsele bak.',
+      questionText: '${story.text}$distractor',
+      imageUrl: 'mock://math/subtraction/${story.spec.template}',
+      solutionImageUrl:
+          'mock://math/subtraction/${story.spec.template}/solution',
+      choices: _choicesAround(diff),
+      correctAnswer: '$diff',
+      explanation: story.explanation,
+      metadata: {
+        'type': 'multipleChoice',
+        'a': start,
+        'b': take,
+        'sceneVisual': story.spec.toMap(),
+        if (d == SkillTier.hard) 'twoStep': true,
+      },
+    );
   }
 
   EducationQuestion _multiplication(SkillTier d, int index) {
@@ -490,38 +458,49 @@ class MathQuestionGenerator implements QuestionGenerator {
   EducationQuestion _fractions(SkillTier d, int index) {
     return switch (d) {
       SkillTier.easy => () {
-          // Görsel: 4 dilimden 2'si boyalı → 1/2
-          final whole = [2, 4][index % 2];
-          final shaded = whole ~/ 2;
+          const configs = <(int whole, int shaded, String answer, List<String> choices)>[
+            (2, 1, '1/2', ['1/2', '1/4', '1/3', '2/2']),
+            (4, 1, '1/4', ['1/4', '1/2', '1/3', '2/4']),
+            (4, 2, '1/2', ['1/2', '1/4', '3/4', '2/2']),
+            (4, 3, '3/4', ['3/4', '1/4', '1/2', '2/4']),
+            (3, 1, '1/3', ['1/3', '1/2', '2/3', '1/4']),
+            (3, 2, '2/3', ['2/3', '1/3', '1/2', '3/3']),
+            (6, 1, '1/6', ['1/6', '1/2', '1/3', '2/6']),
+            (6, 3, '1/2', ['1/2', '1/3', '1/6', '3/6']),
+            (8, 2, '1/4', ['1/4', '1/2', '1/8', '2/8']),
+            (8, 4, '1/2', ['1/2', '1/4', '1/8', '4/8']),
+          ];
+          final c = configs[index % configs.length];
           final parts = List.generate(
-            whole,
-            (i) => i < shaded ? '■' : '□',
+            c.$1,
+            (i) => i < c.$2 ? '■' : '□',
           ).join(' ');
           return EducationQuestion(
-            id: 'math-frac-e-$index-$whole',
+            id: 'math-frac-e-${c.$1}-${c.$2}-${c.$3}',
             category: 'fractions',
             skill: SkillArea.mathematics,
             difficulty: d,
             instruction: 'Boyalı kısmı bul.',
             questionText: '$parts\n\nBoyalı kısım hangi kesir?',
-            choices: const ['1/2', '1/4', '1/3', '2/2'],
-            correctAnswer: '1/2',
-            explanation: '$shaded / $whole = 1/2',
+            choices: c.$4,
+            correctAnswer: c.$3,
+            explanation: '${c.$2} / ${c.$1} = ${c.$3}',
             metadata: {
               'type': 'multipleChoice',
               'operationType': 'fraction_basic',
-              'numerator': 1,
-              'denominator': 2,
-              'whole': whole,
-              'shaded': shaded,
+              'numerator': c.$2,
+              'denominator': c.$1,
+              'whole': c.$1,
+              'shaded': c.$2,
             },
           );
         }(),
       SkillTier.medium => () {
-          final total = [4, 6, 8, 10][_rng.nextInt(4)];
+          const totals = [4, 6, 8, 10, 12, 14, 16, 18, 20, 24];
+          final total = totals[index % totals.length];
           final half = total ~/ 2;
           return EducationQuestion(
-            id: 'math-frac-m-$index-$total',
+            id: 'math-frac-m-$total',
             category: 'fractions',
             skill: SkillArea.mathematics,
             difficulty: d,
@@ -542,29 +521,40 @@ class MathQuestionGenerator implements QuestionGenerator {
           );
         }(),
       SkillTier.hard => () {
-          // Çeyrek veya 1/4 of set
-          final total = [4, 8, 12][_rng.nextInt(3)];
-          final quarter = total ~/ 4;
-          final age = _rng.nextInt(3) + 7;
+          const configs = <(int total, int parts, String label)>[
+            (4, 4, 'çeyrek'),
+            (8, 4, 'çeyrek'),
+            (12, 4, 'çeyrek'),
+            (16, 4, 'çeyrek'),
+            (6, 3, 'üçte bir'),
+            (9, 3, 'üçte bir'),
+            (12, 3, 'üçte bir'),
+            (15, 3, 'üçte bir'),
+            (10, 5, 'beşte bir'),
+            (20, 5, 'beşte bir'),
+          ];
+          final c = configs[index % configs.length];
+          final piece = c.$1 ~/ c.$2;
+          final age = 7 + (index % 4);
           return EducationQuestion(
-            id: 'math-frac-h-$index-$total',
+            id: 'math-frac-h-${c.$1}-${c.$2}',
             category: 'fractions',
             skill: SkillArea.mathematics,
             difficulty: d,
             instruction: 'Gerekli bilgiyi bul ve çöz.',
             questionText:
                 'Ayşe $age yaşında.\n'
-                'Sepette $total çilek var. Ayşe çeyreğini yiyor.\n'
+                'Sepette ${c.$1} çilek var. Ayşe ${c.$3}ini yiyor.\n'
                 'Ayşe kaç çilek yedi?',
-            choices: _choicesAround(quarter),
-            correctAnswer: '$quarter',
-            explanation: 'Yaş gerekmez. $total × 1/4 = $quarter',
+            choices: _choicesAround(piece),
+            correctAnswer: '$piece',
+            explanation: 'Yaş gerekmez. ${c.$1} ÷ ${c.$2} = $piece',
             metadata: {
               'type': 'multipleChoice',
               'operationType': 'fraction_basic',
               'numerator': 1,
-              'denominator': 4,
-              'whole': total,
+              'denominator': c.$2,
+              'whole': c.$1,
               'twoStep': true,
             },
           );
@@ -573,70 +563,35 @@ class MathQuestionGenerator implements QuestionGenerator {
   }
 
   EducationQuestion _wordProblem(SkillTier d, int index) {
-    return switch (d) {
-      SkillTier.easy => () {
-          final a = _rng.nextInt(5) + 2;
-          final b = _rng.nextInt(4) + 1;
-          return EducationQuestion(
-            id: 'math-wp-e-$index',
-            category: 'word_problems',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Problemi çöz.',
-            questionText: 'Sepette $a elma var. $b elma daha konuyor. '
-                'Kaç elma olur?',
-            choices: _choicesAround(a + b),
-            correctAnswer: '${a + b}',
-            explanation: '$a + $b = ${a + b}',
-            metadata: const {'type': 'multipleChoice'},
-          );
-        }(),
-      SkillTier.medium => () {
-          const fridge = 5;
-          const hand = 3;
-          return EducationQuestion(
-            id: 'math-wp-m-$index',
-            category: 'word_problems',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Problemi oku ve çöz.',
-            questionText:
-                'Buzdolabında $fridge yumurta var.\n'
-                'Ayşe’nin elinde $hand yumurta var.\n'
-                'Ayşe yumurtaları buzdolabına koyuyor.\n'
-                'Kaç yumurta olur?',
-            choices: _choicesAround(fridge + hand),
-            correctAnswer: '${fridge + hand}',
-            explanation: '$fridge + $hand = ${fridge + hand}',
-            metadata: {
-              'type': 'multipleChoice',
-              'scene': ['Ayşe', 'yumurta', 'buzdolabı'],
-            },
-          );
-        }(),
-      SkillTier.hard => () {
-          final age = _rng.nextInt(5) + 8;
-          final years = _rng.nextInt(3) + 2;
-          final books = _rng.nextInt(4) + 3;
-          final more = _rng.nextInt(3) + 1;
-          return EducationQuestion(
-            id: 'math-wp-h-$index',
-            category: 'word_problems',
-            skill: SkillArea.mathematics,
-            difficulty: d,
-            instruction: 'Gerekli bilgiyi bul ve çöz.',
-            questionText:
-                'Mehmet $age yaşında. $years yıl sonra okula başlayacak.\n'
-                'Bugün rafta $books kitap var. Mehmet $more kitap daha koyuyor.\n'
-                'Rafta kaç kitap olur?',
-            choices: _choicesAround(books + more),
-            correctAnswer: '${books + more}',
-            explanation:
-                'Yaş bilgisi gerekmez. $books + $more = ${books + more}',
-            metadata: const {'type': 'multipleChoice', 'twoStep': true},
-          );
-        }(),
-    };
+    final a = 2 + (index % 5);
+    final b = 1 + ((index * 2) % 4);
+    final story = SceneVisualSpec.mathAddStory(index: index, a: a, b: b);
+    final sum = a + b;
+    final distractor = d == SkillTier.hard
+        ? '\n(${story.spec.character} ${7 + index % 6} yaşında — gerekmez.)'
+        : '';
+    return EducationQuestion(
+      id: 'math-wp-${d.name}-$index-$a-$b',
+      category: 'word_problems',
+      skill: SkillArea.mathematics,
+      difficulty: d,
+      instruction: d == SkillTier.hard
+          ? 'Gerekli bilgiyi bul ve çöz.'
+          : 'Problemi oku ve görsele bak.',
+      questionText: '${story.text}$distractor',
+      imageUrl: 'mock://math/wp/${story.spec.template}',
+      solutionImageUrl: 'mock://math/wp/${story.spec.template}/solution',
+      choices: _choicesAround(sum),
+      correctAnswer: '$sum',
+      explanation: story.explanation,
+      metadata: {
+        'type': 'multipleChoice',
+        'a': a,
+        'b': b,
+        'sceneVisual': story.spec.toMap(),
+        if (d == SkillTier.hard) 'twoStep': true,
+      },
+    );
   }
 
   EducationQuestion _table(SkillTier d, int index, String category) {

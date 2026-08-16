@@ -17,6 +17,13 @@ abstract final class Env {
     defaultValue: 'gemini-3.5-flash',
   );
 
+  /// Görsel modeli (Nano Banana 2). Eski `gemini-2.5-flash-image` 404 verebilir.
+  /// Docs: https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image
+  static const geminiImageModel = String.fromEnvironment(
+    'GEMINI_IMAGE_MODEL',
+    defaultValue: 'gemini-3.1-flash-image',
+  );
+
   /// Opsiyonel log senkron uç noktası (Supabase REST / Firebase Functions).
   /// Boşsa InMemoryRemoteLogClient kullanılır (kuluçka demosu).
   static const syncEndpoint = String.fromEnvironment('SYNC_ENDPOINT');
@@ -60,6 +67,25 @@ abstract final class Env {
 
   /// Opsiyonel OpenAI anahtarı (içerik LLM; mock yoksa).
   static const openAiApiKey = String.fromEnvironment('OPENAI_API_KEY');
+
+  /// Debug’da kotayı koru: mock görsel. Gerçek API için:
+  /// `--dart-define=FORCE_REAL_AI_IMAGES=true`
+  static const forceRealAiImages = bool.fromEnvironment(
+    'FORCE_REAL_AI_IMAGES',
+  );
+
+  /// Açıkça mock görsel zorla (kota / UI testi).
+  static const useMockImages = bool.fromEnvironment('USE_MOCK_IMAGES');
+
+  /// Debug’da varsayılan mock görsel (kotayı korur). Gerçek görsel için:
+  /// `--dart-define=FORCE_REAL_AI_IMAGES=true`
+  static bool get shouldUseMockImages {
+    if (forceRealAiImages) return false;
+    if (useMockImages) return true;
+    // kDebugMode import için foundation gerekir — burada dart-define yoksa
+    // çağıran taraf kDebugMode ile birleştirir.
+    return false;
+  }
 
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 

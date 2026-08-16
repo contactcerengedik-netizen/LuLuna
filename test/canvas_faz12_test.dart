@@ -30,6 +30,17 @@ void main() {
       final path = CanvasPalette.sampleClipMask(const Size(200, 200));
       expect(path.computeMetrics().isEmpty, isFalse);
     });
+
+    test('10 figür outline tanımlı', () {
+      expect(CanvasPalette.figureLabels, hasLength(10));
+      const size = Size(200, 200);
+      for (var i = 0; i < 10; i++) {
+        expect(
+          CanvasPalette.outlineFor(i, size).computeMetrics().isEmpty,
+          isFalse,
+        );
+      }
+    });
   });
 
   group('CategorizationQuestion', () {

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:luluna/data/models/sequence_question.dart';
@@ -8,13 +10,15 @@ import 'package:luluna/features/language/data/language_question_generator.dart';
 void main() {
   group('SequenceQuestion', () {
     test('shuffled + isCorrectSequence', () {
+      // Sabit seed ile kimlik sırası bozulur (flaky Random() olmasın).
       final seq = SequenceQuestion.shuffled(
         const ['Ali', 'okula', 'gitti'],
-        random: null,
+        random: Random(1),
       );
       expect(seq.items, hasLength(3));
       expect(seq.isCorrectSequence(seq.correctItems), isTrue);
-      expect(seq.isCorrectSequence(seq.items), seq.items == seq.correctItems);
+      expect(seq.items, isNot(seq.correctItems));
+      expect(seq.isCorrectSequence(seq.items), isFalse);
       final encoded = SequenceQuestion.encode(seq.correctItems);
       expect(
         seq.isCorrectSequence(SequenceQuestion.decode(encoded)),

@@ -1,6 +1,9 @@
 {
   "GEMINI_API_KEY": "BURAYA_KENDI_ANAHTARINIZI_YAZIN",
   "GEMINI_MODEL": "gemini-3.5-flash",
+  "GEMINI_IMAGE_MODEL": "gemini-3.1-flash-image",
+  "OPENAI_API_KEY": "sk-BURAYA_OPENAI_ANAHTARI",
+  "FORCE_REAL_AI_IMAGES": "true",
   "SUPABASE_URL": "https://xxxx.supabase.co",
   "SUPABASE_ANON_KEY": "BURAYA_ANON_KEY_YAZIN",
   "GOOGLE_WEB_CLIENT_ID": "xxxx.apps.googleusercontent.com",
